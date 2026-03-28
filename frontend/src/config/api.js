@@ -4,5 +4,5 @@ export const ENDPOINTS = {
     UPLOAD_TEXT: '/upload/text',
     UPLOAD_FILE: '/upload/file',
     GET_CONTENT: (code) => `/content/${code}`,
-    DOWNLOAD_FILE: (code) => `/download/${code}`,
+    DOWNLOAD_FILE: (code, fileIndex) => `/download/${code}/${fileIndex}`,
 };

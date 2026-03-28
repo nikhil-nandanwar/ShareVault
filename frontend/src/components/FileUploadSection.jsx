@@ -93,7 +93,7 @@ const FileUploadSection = () => {
         try {
             const formData = new FormData();
             files.forEach(file => {
-                formData.append('file', file);
+                formData.append('files', file);
             });
 
             const response = await axios.post(API_BASE_URL + ENDPOINTS.UPLOAD_FILE, formData, {
