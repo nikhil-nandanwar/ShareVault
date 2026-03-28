@@ -38,7 +38,7 @@ const storage = multer.diskStorage({
     }
 });
 
-const upload = multer({ storage: storage });
+const upload = multer({ storage: storage, limits: { files: Infinity } });
 
 mongoose.connect(process.env.MONGO_URI)
     .then(() => {
@@ -54,6 +54,11 @@ const contentSchema = new mongoose.Schema({
     type: String,
     content: String,
     filename: String,
+    files: [{
+        path: String,
+        filename: String,
+        size: Number
+    }],
     code: String,
     createdAt: { type: Date, default: Date.now, expires: 86400 }
 });
@@ -87,25 +92,30 @@ app.post('/api/upload/text', async (req, res) => {
     }
 });
 
-app.post('/api/upload/file', upload.single('file'), async (req, res) => {
+app.post('/api/upload/file', upload.array('files'), async (req, res) => {
     try {
-        if (!req.file) {
-            return res.status(400).json({ error: 'No file uploaded' });
+        if (!req.files || req.files.length === 0) {
+            return res.status(400).json({ error: 'No files uploaded' });
         }
 
         const code = await generateUniqueCode();
 
+        const files = req.files.map(file => ({
+            path: file.path,
+            filename: file.originalname,
+            size: file.size
+        }));
+
         const newContent = new Content({
             type: 'file',
-            content: req.file.path,
-            filename: req.file.originalname,
+            files,
             code
         });
 
         await newContent.save();
-        res.json({ code });
+        res.json({ code, fileCount: files.length });
     } catch (error) {
-        res.status(500).json({ error: 'Error uploading file' });
+        res.status(500).json({ error: 'Error uploading files' });
     }
 });
 
@@ -124,10 +134,11 @@ app.get('/api/content/:code', async (req, res) => {
     }
 });
 
-// Download route
-app.get('/api/download/:code', async (req, res) => {
+// Download a specific file by code and file index
+app.get('/api/download/:code/:fileIndex', async (req, res) => {
     try {
-        const { code } = req.params;
+        const { code, fileIndex } = req.params;
+        const index = parseInt(fileIndex, 10);
         const content = await Content.findOne({ code });
 
         if (!content) {
@@ -138,24 +149,48 @@ app.get('/api/download/:code', async (req, res) => {
             return res.status(400).json({ error: 'Content is not a file' });
         }
 
-        // Get the absolute path to the file
-        const filePath = join(__dirname, content.content);
-
-        // Check if file exists
-        if (!fs.existsSync(filePath)) {
+        if (!content.files || index < 0 || index >= content.files.length) {
             return res.status(404).json({ error: 'File not found' });
         }
 
-        // Set headers for file download
-        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(content.filename)}"`);
-        res.setHeader('Content-Type', 'application/octet-stream');
+        const file = content.files[index];
+        const filePath = join(__dirname, file.path);
 
-        // Stream the file
-        const fileStream = fs.createReadStream(filePath);
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ error: 'File not found on disk' });
+        }
+
+        // Get accurate file size for Content-Length
+        const stat = fs.statSync(filePath);
+
+        // Set headers for reliable large-file download
+        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.filename)}"`);
+        res.setHeader('Content-Type', 'application/octet-stream');
+        res.setHeader('Content-Length', stat.size);
+        res.setHeader('Cache-Control', 'no-cache');
+
+        // Stream the file with error handling
+        const fileStream = fs.createReadStream(filePath, { highWaterMark: 64 * 1024 });
+
+        fileStream.on('error', (err) => {
+            console.error('File stream error:', err);
+            if (!res.headersSent) {
+                res.status(500).json({ error: 'Error reading file' });
+            } else {
+                res.destroy();
+            }
+        });
+
+        res.on('close', () => {
+            fileStream.destroy();
+        });
+
         fileStream.pipe(res);
     } catch (error) {
         console.error('Error in download route:', error);
-        res.status(500).json({ error: 'Error downloading file' });
+        if (!res.headersSent) {
+            res.status(500).json({ error: 'Error downloading file' });
+        }
     }
 });
 

@@ -30,44 +30,45 @@ const RetrieveContent = () => {
         }
     };
 
-    const downloadFile = async (filePath) => {
+    const downloadFile = async (fileIndex, filename) => {
         try {
             setError('');
-            const response = await axios.get(`${API_BASE_URL}${ENDPOINTS.DOWNLOAD_FILE(code)}`, {
+            const response = await axios.get(`${API_BASE_URL}${ENDPOINTS.DOWNLOAD_FILE(code, fileIndex)}`, {
                 responseType: 'blob'
             });
 
-            // Create a blob URL
             const blob = new Blob([response.data], { type: response.headers['content-type'] });
             const url = window.URL.createObjectURL(blob);
 
-            // Create a temporary anchor element
             const link = document.createElement('a');
             link.href = url;
 
-            // Get filename from content-disposition header or use a default
             const contentDisposition = response.headers['content-disposition'];
-            let filename = content?.filename || 'downloaded-file';
+            let downloadName = filename || 'downloaded-file';
             if (contentDisposition) {
                 const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
                 if (filenameMatch && filenameMatch[1]) {
-                    filename = filenameMatch[1].replace(/['"]/g, '');
+                    downloadName = filenameMatch[1].replace(/['"]/g, '');
                 }
             }
 
-            link.setAttribute('download', decodeURIComponent(filename));
-
-            // Append to body, click and remove
+            link.setAttribute('download', decodeURIComponent(downloadName));
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-
-            // Clean up the blob URL
             window.URL.revokeObjectURL(url);
         } catch (error) {
             console.error('Error downloading file:', error);
             setError(error.response?.data?.error || 'Failed to download file. Please try again.');
         }
+    };
+
+    const getFileSize = (size) => {
+        if (!size) return '';
+        if (size < 1024) return size + ' B';
+        if (size < 1024 * 1024) return (size / 1024).toFixed(2) + ' KB';
+        if (size < 1024 * 1024 * 1024) return (size / (1024 * 1024)).toFixed(2) + ' MB';
+        return (size / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
     };
 
     const copyToClipboard = async (text) => {
@@ -151,17 +152,21 @@ const RetrieveContent = () => {
                                     </button>
                                 </div>
                             ) : (
-                                <div className="flex items-center justify-between bg-gray-50 py-4 rounded-lg">
-                                    <div className='w-1/2 overflow-hidden'>
-                                        <p className="text-sm font-medium text-gray-900">{content.filename}</p>
-                                        <p className="text-xs text-gray-500">Click to download</p>
-                                    </div>
-                                    <button
-                                        onClick={() => downloadFile(content.content)}
-                                        className="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors cursor-pointer"
-                                    >
-                                        Download
-                                    </button>
+                                <div className="space-y-3">
+                                    {content.files && content.files.map((file, index) => (
+                                        <div key={index} className="flex items-center justify-between bg-gray-50 p-4 rounded-lg">
+                                            <div className='w-1/2 overflow-hidden'>
+                                                <p className="text-sm font-medium text-gray-900 truncate">{file.filename}</p>
+                                                <p className="text-xs text-gray-500">{getFileSize(file.size)}</p>
+                                            </div>
+                                            <button
+                                                onClick={() => downloadFile(index, file.filename)}
+                                                className="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors cursor-pointer"
+                                            >
+                                                Download
+                                            </button>
+                                        </div>
+                                    ))}
                                 </div>
                             )}
                         </motion.div>
