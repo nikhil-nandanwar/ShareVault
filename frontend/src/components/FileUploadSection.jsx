@@ -15,7 +15,8 @@ const FileUploadSection = () => {
         'image': ['.jpg', '.jpeg', '.png', '.gif', '.webp'],
         'video': ['.mp4', '.avi', '.mov', '.mkv', '.webm'],
         'audio': ['.mp3', '.wav', '.ogg', '.m4a'],
-        'document': ['.pdf', '.doc', '.docx', '.txt', '.xlsx', '.ppt', '.pptx']
+        'document': ['.pdf', '.doc', '.docx', '.txt', '.xlsx', '.ppt', '.pptx'],
+        'archive': ['.zip']
     };
 
     const handleDragOver = (e) => {
@@ -72,6 +73,7 @@ const FileUploadSection = () => {
         }
         if (allowedTypes.video.includes(extension)) return '🎥';
         if (allowedTypes.audio.includes(extension)) return '🎵';
+        if (allowedTypes.archive.includes(extension)) return '🗜️';
         return '📄';
     };
 
@@ -197,7 +199,7 @@ const FileUploadSection = () => {
                                 <span className="font-medium text-indigo-500">Click to upload</span> or drag and drop
                             </div>
                             <div className="text-xs text-gray-500">
-                                Supported formats: Image (JPG, PNG, GIF), Video (MP4, AVI, MOV), Audio (MP3, WAV), Documents (PDF, DOC, TXT)
+                                Supported formats: Image (JPG, PNG, GIF), Video (MP4, AVI, MOV), Audio (MP3, WAV), Documents (PDF, DOC, TXT), Archive (ZIP)
                             </div>
                         </div>
                     </div>
