@@ -1,0 +1,26 @@
+# https://www.robotstxt.org/robotstxt.html
+# ShareVault - allow all well-behaved crawlers to index the site
+
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /uploads/
+
+# Block known bad / aggressive bots
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /
+
+# Sitemap location
+Sitemap: https://sharevault.vercel.app/sitemap.xml
+
+# Host directive
+Host: https://sharevault.vercel.app
