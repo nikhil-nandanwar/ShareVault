@@ -1,41 +1,54 @@
-import React, { useEffect } from 'react'
-import Navbar from './components/Navbar'
-import { FileTypeProvider, useFileType } from './context/FileTypeProvider'
-import TextUploadSection from './components/TextUploadSection'
-import FileUploadSection from './components/FileUploadSection'
-import RetrieveContent from './components/RetrieveContent'
+import { AnimatePresence, motion } from 'framer-motion';
+import Navbar from './components/layout/Navbar';
+import Hero from './components/layout/Hero';
+import Footer from './components/layout/Footer';
+import PageContainer from './components/layout/PageContainer';
+import {
+    FileUploadSection,
+    RetrieveContent,
+    TextUploadSection,
+} from './components/features';
+import { FileTypeProvider } from './context/FileTypeProvider';
+import { useFileType } from './context/FileTypeContext';
 
-
-
-const MainContent = () => {
-  const { fileType } = useFileType();
-
-  switch (fileType) {
-    case 'Text':
-      return <TextUploadSection />;
-    case 'Files':
-      return <FileUploadSection />;
-    case 'Retrieve':
-      return <RetrieveContent />;
-    default:
-      return <TextUploadSection />;
-  }
+const VIEWS = {
+    Text: TextUploadSection,
+    Files: FileUploadSection,
+    Retrieve: RetrieveContent,
 };
 
-function App() {
+function ActiveView() {
+    const { fileType } = useFileType();
+    const View = VIEWS[fileType] ?? TextUploadSection;
 
-  return (
-    <FileTypeProvider>
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center">
-        <div className="w-full">
-          <Navbar />
-        </div>
-        <div className="w-[95%] md:w-[85%] lg:w-[70%] max-w-7xl">
-          <MainContent />
-        </div>
-      </div>
-    </FileTypeProvider>
-  )
+    return (
+        <AnimatePresence mode="wait">
+            <motion.div
+                key={fileType}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.25, ease: 'easeOut' }}
+            >
+                <View />
+            </motion.div>
+        </AnimatePresence>
+    );
 }
 
-export default App
+function App() {
+    return (
+        <FileTypeProvider>
+            <div className="app-backdrop flex min-h-screen flex-col">
+                <Navbar />
+                <Hero />
+                <PageContainer className="flex-1 pb-16">
+                    <ActiveView />
+                </PageContainer>
+                <Footer />
+            </div>
+        </FileTypeProvider>
+    );
+}
+
+export default App;

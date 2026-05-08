@@ -1,28 +1,15 @@
-import React, { createContext, useContext, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { FileTypeContext } from './FileTypeContext';
 
-const FileTypeContext = createContext();
-
-export const useFileType = () => {
-    const context = useContext(FileTypeContext);
-    if (!context) {
-        throw new Error('useFileType must be used within a FileTypeProvider');
-    }
-    return context;
-};
-
-export const FileTypeProvider = ({ children }) => {
+export function FileTypeProvider({ children }) {
     const [fileType, setFileType] = useState('Text');
-
-    const value = {
-        fileType,
-        setFileType
-    };
+    const value = useMemo(() => ({ fileType, setFileType }), [fileType]);
 
     return (
         <FileTypeContext.Provider value={value}>
             {children}
         </FileTypeContext.Provider>
     );
-};
+}
 
 export default FileTypeProvider;
