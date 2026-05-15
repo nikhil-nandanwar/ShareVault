@@ -4,14 +4,24 @@ export const ALLOWED_FILE_TYPES = {
     audio: ['.mp3', '.wav', '.ogg', '.m4a', '.flac', '.aac', '.wma', '.aiff'],
     document: [
         // Word / text
-        '.pdf', '.doc', '.docx', '.docm', '.dot', '.dotx', '.dotm',
-        '.txt', '.rtf', '.odt', '.ott', '.md', '.csv', '.xml', '.json',
+        '.pdf', '.doc', '.docx', '.docm', '.docb', '.dot', '.dotx', '.dotm',
+        '.txt', '.rtf', '.odt', '.ott', '.fodt', '.md', '.csv', '.xml', '.json',
+        '.wps', '.wpt',                                      // WPS Writer
+        '.pages',                                            // Apple Pages
+        '.epub',
         // Excel / spreadsheets
-        '.xls', '.xlsx', '.xlsm', '.xlsb', '.xlt', '.xltx', '.xltm', '.ods', '.ots',
+        '.xls', '.xlsx', '.xlsm', '.xlsb', '.xlw',
+        '.xlt', '.xltx', '.xltm', '.xla', '.xlam',
+        '.ods', '.ots', '.fods',                             // OpenDocument
+        '.et', '.ett',                                       // WPS Spreadsheet
+        '.numbers',                                          // Apple Numbers
         // PowerPoint / presentations
-        '.ppt', '.pptx', '.pptm', '.ppsx', '.ppsm', '.pps', '.pot', '.potx', '.potm', '.odp', '.otp', '.key',
-        // Other
-        '.epub', '.pages', '.numbers',
+        '.ppt', '.pptx', '.pptm',
+        '.ppsx', '.ppsm', '.pps',
+        '.pot', '.potx', '.potm',
+        '.odp', '.otp', '.fodp',                             // OpenDocument
+        '.dps', '.dpt', '.wpp',                              // WPS Presentation
+        '.key',                                              // Apple Keynote
     ],
     archive: ['.zip', '.rar', '.7z', '.tar', '.gz', '.bz2'],
 };
