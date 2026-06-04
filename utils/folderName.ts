@@ -4,7 +4,7 @@ import path from "node:path";
 
 type FolderRegistry = Record<string, string>;
 
-const DATA_FILE_PATH = path.join(process.cwd(), "data.json");
+const DATA_FILE_PATH = path.join(process.cwd(), "./utils/dataHaiYeBadeKamKa.json");
 const MIN_FOLDER_NAME = 100000;
 const MAX_FOLDER_NAME = 999999;
 const MAX_GENERATION_ATTEMPTS = 20;
