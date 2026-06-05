@@ -1,25 +1,9 @@
 "use client";
 
+import { DownloadResponse, UploadResponse, UploadSelection, UploadStatus } from "@/lib/types";
 import { useState, type ChangeEvent, type FormEvent } from "react";
 
-type UploadStatus = "idle" | "uploading" | "success" | "error";
 
-type UploadResponse = {
-  files?: string[];
-  error?: string;
-};
-
-type DownloadResponse = {
-  downloadUrl?: string;
-  error?: string;
-};
-
-type UploadSelection = {
-  files: File[];
-  uploadedKeys: string[];
-  activeKey: string;
-  downloadUrl: string;
-};
 
 function createInitialSelection(): UploadSelection {
   return {
@@ -80,7 +64,7 @@ export default function UploadPage() {
         formData.append("files", file);
       });
 
-      const response = await fetch("/api/upload", {
+      const response = await fetch("/api/file", {
         method: "POST",
         body: formData,
       });
@@ -143,25 +127,25 @@ export default function UploadPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(79,124,255,0.24),_transparent_34%),linear-gradient(180deg,#050816_0%,#0a1222_100%)] px-4 py-10 text-slate-100 sm:px-6 lg:px-8">
-      <section className="mx-auto flex w-full max-w-4xl flex-col gap-6 rounded-3xl border border-white/10 bg-slate-950/70 p-6 shadow-[0_30px_120px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:p-8">
+    <main className="min-h-screen bg-gray-50 px-4 py-6 text-gray-900 sm:px-6 lg:px-8">
+      <section className="mx-auto flex w-full max-w-4xl flex-col gap-6 rounded-2xl border border-gray-300 bg-white p-6 shadow-sm sm:p-8">
         <header className="space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-300/90">File Upload</p>
-          <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-5xl">Backblaze B2 Document Storage</h1>
-          <p className="max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
-            Upload one or more files to the backend, then generate a time-limited download link for any stored object.
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-blue-600">File Upload</p>
+          <h1 className="text-3xl font-semibold tracking-tight text-gray-900 sm:text-5xl">Upload Files</h1>
+          <p className="max-w-2xl text-sm leading-6 text-gray-600 sm:text-base">
+            Upload one or more files and generate a time-limited download link for any stored object.
           </p>
         </header>
 
         <form onSubmit={handleUpload} className="grid gap-4">
-          <label className="grid gap-3 rounded-2xl border border-dashed border-white/15 bg-white/5 p-4 transition hover:border-sky-300/40 hover:bg-white/[0.07]">
-            <span className="text-sm font-medium text-slate-200">Select files</span>
+          <label className="grid gap-3 rounded-2xl border border-gray-300 bg-gray-50 p-4 transition hover:border-blue-300 hover:bg-white">
+            <span className="text-sm font-medium text-gray-700">Select files</span>
             <input
               type="file"
               multiple
               onChange={handleFileChange}
               disabled={status === "uploading"}
-              className="block w-full cursor-pointer rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-slate-200 file:mr-4 file:rounded-md file:border-0 file:bg-sky-400 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-slate-950 hover:file:bg-sky-300 disabled:cursor-not-allowed disabled:opacity-60"
+              className="block w-full cursor-pointer rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 file:mr-4 file:rounded-md file:border-0 file:bg-blue-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
             />
           </label>
 
@@ -169,7 +153,7 @@ export default function UploadPage() {
             <button
               type="submit"
               disabled={!hasSelectedFiles || status === "uploading"}
-              className="inline-flex items-center justify-center rounded-xl bg-sky-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+              className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500"
             >
               {status === "uploading" ? "Uploading..." : "Upload Files"}
             </button>
@@ -178,7 +162,7 @@ export default function UploadPage() {
               type="button"
               onClick={resetForm}
               disabled={!hasSelectedFiles && !hasUploadedFiles && !selection.downloadUrl}
-              className="inline-flex items-center justify-center rounded-xl border border-white/15 bg-transparent px-5 py-3 text-sm font-semibold text-slate-100 transition hover:border-white/25 hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:border-gray-400 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Reset
             </button>
@@ -186,11 +170,11 @@ export default function UploadPage() {
         </form>
 
         {hasSelectedFiles && (
-          <section className="rounded-2xl border border-white/10 bg-slate-900/40 p-4">
-            <h2 className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-400">Queued files</h2>
-            <ul className="mt-3 grid gap-2 text-sm text-slate-200">
+          <section className="rounded-2xl border border-gray-300 bg-gray-50 p-4">
+            <h2 className="text-sm font-semibold uppercase tracking-[0.24em] text-gray-500">Queued files</h2>
+            <ul className="mt-3 grid gap-2 text-sm text-gray-700">
               {selection.files.map((file) => (
-                <li key={`${file.name}-${file.size}-${file.lastModified}`} className="rounded-lg bg-white/5 px-3 py-2">
+                <li key={`${file.name}-${file.size}-${file.lastModified}`} className="rounded-lg bg-white px-3 py-2 shadow-sm ring-1 ring-gray-200">
                   {file.name}
                 </li>
               ))}
@@ -199,9 +183,9 @@ export default function UploadPage() {
         )}
 
         {status === "success" && (
-          <section className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-5 text-emerald-50">
+          <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5 text-blue-950">
             <p className="font-semibold">Upload completed successfully.</p>
-            <p className="mt-2 text-sm leading-6 text-emerald-100/90">
+            <p className="mt-2 text-sm leading-6 text-blue-900/90">
               Stored keys:
               <br />
               {selection.uploadedKeys.join(", ")}
@@ -216,7 +200,7 @@ export default function UploadPage() {
                     activeKey: event.target.value,
                   }))
                 }
-                className="min-w-0 flex-1 rounded-xl border border-white/10 bg-slate-950/80 px-3 py-3 text-sm text-slate-100 outline-none transition focus:border-sky-300/60"
+                className="min-w-0 flex-1 rounded-xl border border-gray-300 bg-white px-3 py-3 text-sm text-gray-700 outline-none transition focus:border-blue-500"
               >
                 {selection.uploadedKeys.map((key) => (
                   <option key={key} value={key}>
@@ -229,7 +213,7 @@ export default function UploadPage() {
                 type="button"
                 onClick={() => handleDownloadFetch(selectedKey)}
                 disabled={!selectedKey}
-                className="inline-flex items-center justify-center rounded-xl bg-emerald-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+                className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500"
               >
                 Generate Download Link
               </button>
@@ -240,7 +224,7 @@ export default function UploadPage() {
                 href={selection.downloadUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-4 inline-flex text-sm font-semibold text-sky-200 underline decoration-sky-300/60 underline-offset-4 transition hover:text-sky-100"
+                className="mt-4 inline-flex text-sm font-semibold text-blue-700 underline decoration-blue-400/60 underline-offset-4 transition hover:text-blue-800"
               >
                 Open the generated download link
               </a>
@@ -249,7 +233,7 @@ export default function UploadPage() {
         )}
 
         {status === "error" && (
-          <p className="rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm font-medium text-rose-100">
+          <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
             Upload failed. Check the API response and retry.
           </p>
         )}

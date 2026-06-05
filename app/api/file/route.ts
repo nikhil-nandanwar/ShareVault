@@ -3,6 +3,7 @@ import { s3 } from "@/lib/s3";
 import { variables } from "@/lib/variables";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { NextRequest, NextResponse } from "next/server";
+import { uploadToDb } from "@/utils/uploadToDB";
 
 export async function POST(req: NextRequest) {
   try {
@@ -32,10 +33,17 @@ export async function POST(req: NextRequest) {
       }),
     );
 
+    const code = await uploadToDb(folderName!);
+
+    if(code !== folderName){
+        throw new Error("Failed to save folder name to the database");
+    }
+
     return NextResponse.json(
       {
         message: "Successfully uploaded all files!",
         files: uploadedKeys,
+        code: folderName,
       },
       { status: 200 },
     );
