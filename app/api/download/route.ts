@@ -66,7 +66,6 @@ export async function GET(req: NextRequest) {
       return {
         fileName: fileName,
         sizeInBytes: item.Size,
-        lastModified: item.LastModified,
         presignedUrl: presignedUrl,
         directDownloadLink: directDownloadLink,
       };

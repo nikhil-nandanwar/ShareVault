@@ -16,3 +16,10 @@ export type UploadSelection = {
   activeKey: string;
   downloadUrl: string;
 };
+
+export type RetrieveResponse = {
+  fileName: string;
+  sizeInBytes: number ;
+  presignedUrl: string;
+  directDownloadLink: string;
+};
