@@ -1,9 +1,8 @@
 "use client";
 
+import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { DownloadResponse, UploadResponse, UploadSelection, UploadStatus } from "@/lib/types";
 import { useState, type ChangeEvent, type FormEvent } from "react";
-
-
 
 function createInitialSelection(): UploadSelection {
   return {
@@ -18,21 +17,21 @@ function getErrorMessage(error: unknown, fallbackMessage: string): string {
   if (error instanceof Error && error.message) {
     return error.message;
   }
-
   return fallbackMessage;
 }
 
 export default function UploadPage() {
   const [status, setStatus] = useState<UploadStatus>("idle");
-  const [selection, setSelection] = useState<UploadSelection>(createInitialSelection);
+  const [selection, setSelection] = useState<UploadSelection>(createInitialSelection());
+  const [error, setError] = useState<string | null>(null);
+  const [code, setCode] = useState<string | null>(null);
 
   const hasSelectedFiles = selection.files.length > 0;
   const hasUploadedFiles = selection.uploadedKeys.length > 0;
-  const selectedKey = selection.activeKey || selection.uploadedKeys[0] || "";
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const nextFiles = Array.from(event.target.files ?? []);
-
+    setError(null);
     setSelection({
       files: nextFiles,
       uploadedKeys: [],
@@ -44,9 +43,10 @@ export default function UploadPage() {
 
   const handleUpload = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setError(null);
 
     if (!hasSelectedFiles) {
-      setStatus("error");
+      setError("Please select at least one file.");
       return;
     }
 
@@ -76,6 +76,7 @@ export default function UploadPage() {
       }
 
       const uploadedKeys = responseBody.files ?? [];
+      const uploadCode = responseBody.code ?? "";
 
       if (uploadedKeys.length === 0) {
         throw new Error("Upload API returned no file keys.");
@@ -86,10 +87,11 @@ export default function UploadPage() {
         uploadedKeys,
         activeKey: uploadedKeys[0],
       }));
+      setCode(uploadCode);
       setStatus("success");
     } catch (error: unknown) {
-      console.error(error);
-      alert(getErrorMessage(error, "Something went wrong during the upload process."));
+      const errorMsg = getErrorMessage(error, "Failed to upload files.");
+      setError(errorMsg);
       setStatus("error");
     }
   };
@@ -100,11 +102,15 @@ export default function UploadPage() {
     }
 
     try {
-      const response = await fetch(`/api/download?fileKey=${encodeURIComponent(fileKey)}`);
+      const response = await fetch(
+        `/api/download?fileKey=${encodeURIComponent(fileKey)}`
+      );
       const responseBody: DownloadResponse = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(responseBody.error ?? "Failed to create download link.");
+        throw new Error(
+          responseBody.error ?? "Failed to create download link."
+        );
       }
 
       if (!responseBody.downloadUrl) {
@@ -117,127 +123,168 @@ export default function UploadPage() {
         activeKey: fileKey,
       }));
     } catch (error: unknown) {
-      alert(getErrorMessage(error, "Error generating download link."));
+      setError(getErrorMessage(error, "Error generating download link."));
+    }
+  };
+
+  const handleCopyCode = () => {
+    if (code) {
+      navigator.clipboard.writeText(code);
     }
   };
 
   const resetForm = () => {
     setSelection(createInitialSelection());
     setStatus("idle");
+    setError(null);
+    setCode(null);
   };
 
   return (
-    <main className="min-h-screen bg-gray-50 px-4 py-6 text-gray-900 sm:px-6 lg:px-8">
-      <section className="mx-auto flex w-full max-w-4xl flex-col gap-6 rounded-2xl border border-gray-300 bg-white p-6 shadow-sm sm:p-8">
-        <header className="space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-blue-600">File Upload</p>
-          <h1 className="text-3xl font-semibold tracking-tight text-gray-900 sm:text-5xl">Upload Files</h1>
-          <p className="max-w-2xl text-sm leading-6 text-gray-600 sm:text-base">
-            Upload one or more files and generate a time-limited download link for any stored object.
-          </p>
-        </header>
-
-        <form onSubmit={handleUpload} className="grid gap-4">
-          <label className="grid gap-3 rounded-2xl border border-gray-300 bg-gray-50 p-4 transition hover:border-blue-300 hover:bg-white">
-            <span className="text-sm font-medium text-gray-700">Select files</span>
-            <input
-              type="file"
-              multiple
-              onChange={handleFileChange}
-              disabled={status === "uploading"}
-              className="block w-full cursor-pointer rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 file:mr-4 file:rounded-md file:border-0 file:bg-blue-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-            />
-          </label>
-
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="submit"
-              disabled={!hasSelectedFiles || status === "uploading"}
-              className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500"
-            >
-              {status === "uploading" ? "Uploading..." : "Upload Files"}
-            </button>
-
-            <button
-              type="button"
-              onClick={resetForm}
-              disabled={!hasSelectedFiles && !hasUploadedFiles && !selection.downloadUrl}
-              className="inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:border-gray-400 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Reset
-            </button>
-          </div>
-        </form>
-
-        {hasSelectedFiles && (
-          <section className="rounded-2xl border border-gray-300 bg-gray-50 p-4">
-            <h2 className="text-sm font-semibold uppercase tracking-[0.24em] text-gray-500">Queued files</h2>
-            <ul className="mt-3 grid gap-2 text-sm text-gray-700">
-              {selection.files.map((file) => (
-                <li key={`${file.name}-${file.size}-${file.lastModified}`} className="rounded-lg bg-white px-3 py-2 shadow-sm ring-1 ring-gray-200">
-                  {file.name}
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-
-        {status === "success" && (
-          <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5 text-blue-950">
-            <p className="font-semibold">Upload completed successfully.</p>
-            <p className="mt-2 text-sm leading-6 text-blue-900/90">
-              Stored keys:
-              <br />
-              {selection.uploadedKeys.join(", ")}
+    <main className="min-h-screen bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-4xl">
+        <section className="rounded-xl border border-gray-200 bg-white shadow-sm">
+          <div className="border-b border-gray-200 px-6 py-8 sm:px-8">
+            <p className="text-xs font-semibold uppercase tracking-wider text-blue-600 mb-2">
+              File Sharing
             </p>
+            <h1 className="text-3xl font-bold text-gray-900 sm:text-4xl">
+              Upload Files
+            </h1>
+            <p className="mt-3 text-base text-gray-600">
+              Share files securely with a unique retrieval code.
+            </p>
+          </div>
 
-            <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center">
-              <select
-                value={selectedKey}
-                onChange={(event) =>
-                  setSelection((currentSelection) => ({
-                    ...currentSelection,
-                    activeKey: event.target.value,
-                  }))
-                }
-                className="min-w-0 flex-1 rounded-xl border border-gray-300 bg-white px-3 py-3 text-sm text-gray-700 outline-none transition focus:border-blue-500"
-              >
-                {selection.uploadedKeys.map((key) => (
-                  <option key={key} value={key}>
-                    {key}
-                  </option>
-                ))}
-              </select>
-
-              <button
-                type="button"
-                onClick={() => handleDownloadFetch(selectedKey)}
-                disabled={!selectedKey}
-                className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500"
-              >
-                Generate Download Link
-              </button>
-            </div>
-
-            {selection.downloadUrl && (
-              <a
-                href={selection.downloadUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-4 inline-flex text-sm font-semibold text-blue-700 underline decoration-blue-400/60 underline-offset-4 transition hover:text-blue-800"
-              >
-                Open the generated download link
-              </a>
+          <div className="px-6 py-8 sm:px-8">
+            {error && (
+              <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4">
+                <p className="text-sm font-medium text-red-800">{error}</p>
+              </div>
             )}
-          </section>
-        )}
 
-        {status === "error" && (
-          <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-            Upload failed. Check the API response and retry.
-          </p>
-        )}
-      </section>
+            <form onSubmit={handleUpload} className="space-y-6">
+              <div className="rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-8 transition hover:border-blue-400 hover:bg-white">
+                <label className="cursor-pointer">
+                  <div className="text-center">
+                    <p className="text-sm font-semibold text-gray-900 mb-2">
+                      Click to upload or drag and drop
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      PNG, JPG, PDF, DOC, or any file up to 100MB
+                    </p>
+                  </div>
+                  <input
+                    type="file"
+                    multiple
+                    onChange={handleFileChange}
+                    disabled={status === "uploading"}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+
+              {hasSelectedFiles && (
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                    Selected Files ({selection.files.length})
+                  </h3>
+                  <ul className="space-y-2">
+                    {selection.files.map((file) => (
+                      <li
+                        key={`${file.name}-${file.size}-${file.lastModified}`}
+                        className="flex items-center justify-between rounded-lg bg-white px-4 py-3 border border-gray-200"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            {file.name}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {(file.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  disabled={status === "uploading"}
+                  className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-6 py-3 text-sm font-semibold text-gray-700 transition hover:border-gray-400 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Clear
+                </button>
+                <button
+                  type="submit"
+                  disabled={!hasSelectedFiles || status === "uploading"}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-400"
+                >
+                  {status === "uploading" ? (
+                    <>
+                      <LoadingSpinner size="sm" />
+                      Uploading...
+                    </>
+                  ) : (
+                    "Upload Files"
+                  )}
+                </button>
+              </div>
+            </form>
+
+            {status === "success" && hasUploadedFiles && code && (
+              <div className="mt-8 space-y-6 border-t border-gray-200 pt-8">
+                <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+                  <p className="text-sm font-medium text-green-800">
+                    Files uploaded successfully. {selection.uploadedKeys.length} file(s) ready to share.
+                  </p>
+                </div>
+
+                <div className="rounded-lg border border-blue-200 bg-blue-50 p-6">
+                  <p className="text-sm font-semibold text-blue-900 mb-3">
+                    Retrieval Code
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <code className="flex-1 rounded-lg bg-white px-4 py-3 font-mono text-lg font-bold text-gray-900 border border-blue-200">
+                      {code}
+                    </code>
+                    <button
+                      type="button"
+                      onClick={handleCopyCode}
+                      className="flex-shrink-0 rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 transition"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                  <p className="mt-3 text-xs text-blue-700">
+                    Share this code with others to retrieve your files.
+                  </p>
+                </div>
+
+
+                {selection.downloadUrl && (
+                  <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+                    <p className="text-sm font-semibold text-green-900 mb-3">
+                      Download link generated
+                    </p>
+                    <a
+                      href={selection.downloadUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 transition"
+                    >
+                      Download File
+                    </a>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
     </main>
   );
 }

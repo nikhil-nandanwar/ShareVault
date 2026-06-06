@@ -2,6 +2,8 @@ export type UploadStatus = "idle" | "uploading" | "success" | "error";
 
 export type UploadResponse = {
   files?: string[];
+  code?: string;
+  message?: string;
   error?: string;
 };
 
@@ -19,7 +21,7 @@ export type UploadSelection = {
 
 export type RetrieveResponse = {
   fileName: string;
-  sizeInBytes: number ;
+  sizeInBytes: number;
   presignedUrl: string;
   directDownloadLink: string;
 };

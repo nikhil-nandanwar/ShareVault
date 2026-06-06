@@ -3,49 +3,75 @@ import { ListObjectsV2Command, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { s3 } from "@/lib/s3";
 import { variables } from "@/lib/variables";
+import { connectToDatabase } from "@/utils/db";
+import { Content } from "@/models/dataContent.model";
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const folder = searchParams.get("folder");
+    const code = searchParams.get("code");
 
-    if (!folder) {
+    if (!code) {
       return NextResponse.json(
-        { error: "Folder parameter is required" },
-        { status: 400 },
+        { error: "Code parameter is required" },
+        { status: 400 }
       );
     }
 
-    // Ensure the prefix targets a simulated folder structure correctly
-    const prefix = folder.endsWith("/") ? folder : `${folder}/`;
+    // Connect to MongoDB
+    await connectToDatabase();
+
+    // Check if code exists in MongoDB
+    const contentRecord = await Content.findOne({ code });
+
+    if (!contentRecord) {
+      return NextResponse.json(
+        { error: "No data found" },
+        { status: 404 }
+      );
+    }
+
+    // If data field is present, return it
+    if (contentRecord.data) {
+      return NextResponse.json({ 
+        data: contentRecord.data,
+        source: "database"
+      });
+    }
+
+    // If no data, check for folder in R2
+    const prefix = code.endsWith("/") ? code : `${code}/`;
     const bucketName = variables.BUCKET_NAME;
 
-    // 1. Fetch the list of objects matching the folder prefix from R2
     const listResponse = await s3.send(
       new ListObjectsV2Command({
         Bucket: bucketName,
         Prefix: prefix,
-      }),
+      })
     );
 
+    // Check if folder exists with at least 1 file
     if (!listResponse.Contents || listResponse.Contents.length === 0) {
-      return NextResponse.json({ files: [] }); // Return empty array if folder is empty
+      return NextResponse.json(
+        { error: "No data found" },
+        { status: 404 }
+      );
     }
 
-    // 2. Map through objects to extract names and generate URLs
+    // Map through objects to extract names and generate URLs
     const fileListPromises = listResponse.Contents.map(async (item) => {
-      const fileKey = item.Key!;
+      const fileKeyItem = item.Key!;
 
       // Skip directory placeholder structures if any exist
-      if (fileKey.endsWith("/")) return null;
+      if (fileKeyItem.endsWith("/")) return null;
 
       // Extract just the file name out of the full key path (e.g. "folder/sub/doc.pdf" -> "doc.pdf")
-      const fileName = fileKey.substring(fileKey.lastIndexOf("/") + 1);
+      const fileName = fileKeyItem.substring(fileKeyItem.lastIndexOf("/") + 1);
 
       // Generate a Secure Presigned Download URL (Expires in 1 Hour / 3600 seconds)
       const getObjectCommand = new GetObjectCommand({
         Bucket: bucketName,
-        Key: fileKey,
+        Key: fileKeyItem,
       });
 
       const presignedUrl = await getSignedUrl(s3, getObjectCommand, {
@@ -55,7 +81,7 @@ export async function GET(req: NextRequest) {
       // Generate Direct Download Link (Requires Bucket Public Access to be turned on)
       const downloadCommand = new GetObjectCommand({
         Bucket: bucketName,
-        Key: fileKey,
+        Key: fileKeyItem,
         // Optional: This header forces the browser to download the file instead of opening it inline
         ResponseContentDisposition: `attachment; filename="${fileName}"`,
       });
@@ -74,14 +100,17 @@ export async function GET(req: NextRequest) {
     // Filter out any null values from directory placeholders
     const resolvedFiles = (await Promise.all(fileListPromises)).filter(Boolean);
 
-    return NextResponse.json({ files: resolvedFiles });
+    return NextResponse.json({ 
+      files: resolvedFiles,
+      source: "r2"
+    });
   } catch (error: unknown) {
-    console.error("Error listing files:", error);
-        const message = error instanceof Error ? error.message : String(error);
+    console.error("Error in download endpoint:", error);
+    const message = error instanceof Error ? error.message : String(error);
 
     return NextResponse.json(
-      { error: message || "Failed to list files" },
-      { status: 500 },
+      { error: message || "Failed to process request" },
+      { status: 500 }
     );
   }
 }
