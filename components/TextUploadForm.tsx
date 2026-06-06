@@ -154,7 +154,7 @@ export function TextUploadForm() {
             <button
               type="button"
               onClick={handleCopyCode}
-              className="flex-shrink-0 rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 transition"
+              className="shrink-0 rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 transition"
             >
               Copy
             </button>

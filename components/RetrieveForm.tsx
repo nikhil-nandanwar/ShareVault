@@ -126,7 +126,7 @@ export function RetrieveForm() {
               <button
                 type="submit"
                 disabled={loading || !validate(code)}
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-400 flex-shrink-0"
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-400 shrink-0"
               >
                 {loading ? (
                   <>
@@ -168,7 +168,7 @@ export function RetrieveForm() {
 
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-6">
             <div className="prose prose-sm max-w-none">
-              <p className="text-gray-900 whitespace-pre-wrap break-words">
+              <p className="text-gray-900 whitespace-pre-wrap wrap-break-word">
                 {result.data}
               </p>
             </div>
@@ -204,7 +204,7 @@ export function RetrieveForm() {
                     </p>
                   </div>
 
-                  <div className="flex gap-2 flex-shrink-0">
+                  <div className="flex gap-2 shrink-0">
                     <a
                       href={file.presignedUrl}
                       target="_blank"
