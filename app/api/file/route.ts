@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
       }
 
       if (!ALLOWED_TYPES.includes(file.type)) {
-        console.log(`File type "${file.type}" not in allowed list`);
+        // console.log(`File type "${file.type}" not in allowed list`);
       }
     }
 
@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
       { status: 200 }
     );
   } catch (error: unknown) {
-    console.error("File upload error:", error);
+    // console.error("File upload error:", error);
     const message = error instanceof Error ? error.message : String(error);
 
     return NextResponse.json(

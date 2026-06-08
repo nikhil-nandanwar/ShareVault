@@ -105,7 +105,7 @@ export async function GET(req: NextRequest) {
       source: "r2"
     });
   } catch (error: unknown) {
-    console.error("Error in download endpoint:", error);
+    // console.error("Error in download endpoint:", error);
     const message = error instanceof Error ? error.message : String(error);
 
     return NextResponse.json(

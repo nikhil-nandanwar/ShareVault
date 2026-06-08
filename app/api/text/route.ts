@@ -51,7 +51,7 @@ export async function POST(request: Request) {
       { status: 200 }
     );
   } catch (error: unknown) {
-    console.error("Error processing text:", error);
+    // console.error("Error processing text:", error);
     const message = error instanceof Error ? error.message : String(error);
 
     return NextResponse.json(
