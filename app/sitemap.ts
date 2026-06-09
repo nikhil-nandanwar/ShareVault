@@ -7,7 +7,7 @@ function getSiteUrl(): string {
   const vercelUrl = process.env.VERCEL_URL;
   if (vercelUrl) return `https://${vercelUrl}`;
 
-  return "https://sharevault.example.com";
+  return "https://sharevault.nixhil.dev";
 }
 
 export default function sitemap(): MetadataRoute.Sitemap {

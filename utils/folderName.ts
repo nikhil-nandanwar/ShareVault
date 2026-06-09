@@ -22,8 +22,8 @@ export async function generateFolderName(): Promise<string | null> {
     }
   } catch (error: unknown) {
     // console.error("Error generating folder name:", error);
-
-    return  null;
+    const message = error instanceof Error ? error.message : String(error);
+    return  message || null;
   }
 
   return null;
