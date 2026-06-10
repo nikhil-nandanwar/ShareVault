@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
     }
 
     // If no data, check for folder in R2
-    const prefix = code.endsWith("/") ? code : `${code}/`;
+    const prefix = `data/${code.endsWith("/") ? code : `${code}/`}`;
     const bucketName = variables.BUCKET_NAME;
 
     const listResponse = await s3.send(
@@ -53,14 +53,15 @@ export async function GET(req: NextRequest) {
     // Check if folder exists with at least 1 file
     if (!listResponse.Contents || listResponse.Contents.length === 0) {
       return NextResponse.json(
-        { error: "No data found" },
+        { error: "No data found", list : listResponse },
         { status: 404 }
       );
     }
 
+
     // Map through objects to extract names and generate URLs
     const fileListPromises = listResponse.Contents.map(async (item) => {
-      const fileKeyItem = item.Key!;
+      const fileKeyItem = `${item.Key}`;
 
       // Skip directory placeholder structures if any exist
       if (fileKeyItem.endsWith("/")) return null;
@@ -105,7 +106,6 @@ export async function GET(req: NextRequest) {
       source: "r2"
     });
   } catch (error: unknown) {
-    // console.error("Error in download endpoint:", error);
     const message = error instanceof Error ? error.message : String(error);
 
     return NextResponse.json(

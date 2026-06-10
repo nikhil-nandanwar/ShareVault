@@ -21,7 +21,6 @@ export async function generateFolderName(): Promise<string | null> {
       if (!existing) return folderName;
     }
   } catch (error: unknown) {
-    // console.error("Error generating folder name:", error);
     const message = error instanceof Error ? error.message : String(error);
     return  message || null;
   }

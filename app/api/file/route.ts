@@ -62,7 +62,12 @@ export async function POST(req: NextRequest) {
       }
 
       if (!ALLOWED_TYPES.includes(file.type)) {
-        // console.log(`File type "${file.type}" not in allowed list`);
+        return NextResponse.json(
+          {
+            error: `File "${file.name}" has unsupported type "${file.type}"`,
+          },
+          { status: 400 }
+        );
       }
     }
 
@@ -75,7 +80,7 @@ export async function POST(req: NextRequest) {
     const uploadedKeys = await Promise.all(
       files.map(async (file) => {
         const fileBuffer = Buffer.from(await file.arrayBuffer());
-        const objectKey = `${folderName}/${file.name}`;
+        const objectKey = `data/${folderName}/${file.name}`;
 
         const command = new PutObjectCommand({
           Bucket: `${variables.BUCKET_NAME}`,
@@ -104,7 +109,6 @@ export async function POST(req: NextRequest) {
       { status: 200 }
     );
   } catch (error: unknown) {
-    // console.error("File upload error:", error);
     const message = error instanceof Error ? error.message : String(error);
 
     return NextResponse.json(

@@ -17,7 +17,6 @@ export async function uploadToDb(
     }
     return response.code?.toString();
   } catch (error) {
-    // console.error("Database connection error:", error);
     throw new Error("Failed to connect to the database", error instanceof Error ? { cause: error } : undefined);
   }
 }
