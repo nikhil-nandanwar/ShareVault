@@ -1,7 +1,12 @@
 "use client";
 
 import { LoadingSpinner } from "@/components/LoadingSpinner";
-import { UploadResponse, UploadSelection, UploadStatus } from "@/lib/types";
+import {
+  FileInitResponse,
+  UploadResponse,
+  UploadSelection,
+  UploadStatus,
+} from "@/lib/types";
 import { useState, type ChangeEvent, type FormEvent } from "react";
 
 function createInitialSelection(): UploadSelection {
@@ -20,6 +25,39 @@ function getErrorMessage(error: unknown, fallbackMessage: string): string {
   return fallbackMessage;
 }
 
+function uploadFileToR2(
+  file: File,
+  presignedUrl: string,
+  onProgress: (loaded: number) => void,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.addEventListener("progress", (event) => {
+      if (event.lengthComputable) {
+        onProgress(event.loaded);
+      }
+    });
+
+    xhr.addEventListener("load", () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve();
+        return;
+      }
+
+      reject(new Error(`Upload failed for "${file.name}" (${xhr.status})`));
+    });
+
+    xhr.addEventListener("error", () => {
+      reject(new Error(`Network error while uploading "${file.name}"`));
+    });
+
+    xhr.open("PUT", presignedUrl);
+    xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+    xhr.send(file);
+  });
+}
+
 export function FileUploadForm() {
   const [status, setStatus] = useState<UploadStatus>("idle");
   const [selection, setSelection] = useState<UploadSelection>(
@@ -27,6 +65,7 @@ export function FileUploadForm() {
   );
   const [error, setError] = useState<string | null>(null);
   const [code, setCode] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const hasSelectedFiles = selection.files.length > 0;
   const hasUploadedFiles = selection.uploadedKeys.length > 0;
@@ -40,6 +79,7 @@ export function FileUploadForm() {
       activeKey: "",
       downloadUrl: "",
     });
+    setUploadProgress(0);
     setStatus("idle");
   };
 
@@ -54,6 +94,7 @@ export function FileUploadForm() {
 
     try {
       setStatus("uploading");
+      setUploadProgress(0);
       setSelection((currentSelection) => ({
         ...currentSelection,
         uploadedKeys: [],
@@ -61,29 +102,73 @@ export function FileUploadForm() {
         downloadUrl: "",
       }));
 
-      const formData = new FormData();
-      selection.files.forEach((file) => {
-        formData.append("files", file);
-      });
-
-      const response = await fetch("/api/file", {
+      const initResponse = await fetch("/api/file/init", {
         method: "POST",
-        body: formData,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          files: selection.files.map((file) => ({
+            name: file.name,
+            size: file.size,
+            type: file.type,
+          })),
+        }),
       });
 
-      const responseBody: UploadResponse = await response
+      const initBody: FileInitResponse = await initResponse
         .json()
         .catch(() => ({}));
 
-      if (!response.ok) {
-        throw new Error(responseBody.error ?? "Failed to upload files.");
+      if (!initResponse.ok) {
+        throw new Error(initBody.error ?? "Failed to prepare file upload.");
       }
 
-      const uploadedKeys = responseBody.files ?? [];
-      const uploadCode = responseBody.code ?? "";
+      if (!initBody.code || !initBody.uploads?.length) {
+        throw new Error("Upload API returned an invalid upload session.");
+      }
+
+      const totalBytes = selection.files.reduce((sum, file) => sum + file.size, 0);
+      const loadedByFile = new Array(selection.files.length).fill(0);
+
+      await Promise.all(
+        initBody.uploads.map((upload, index) => {
+          const file = selection.files[index];
+
+          if (!file) {
+            throw new Error("Upload session does not match selected files.");
+          }
+
+          return uploadFileToR2(file, upload.presignedUrl, (loaded) => {
+            loadedByFile[index] = loaded;
+            const totalLoaded = loadedByFile.reduce((sum, value) => sum + value, 0);
+            setUploadProgress(
+              totalBytes > 0 ? Math.round((totalLoaded / totalBytes) * 100) : 0,
+            );
+          });
+        }),
+      );
+
+      const completeResponse = await fetch("/api/file/complete", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ code: initBody.code }),
+      });
+
+      const completeBody: UploadResponse = await completeResponse
+        .json()
+        .catch(() => ({}));
+
+      if (!completeResponse.ok) {
+        throw new Error(completeBody.error ?? "Failed to finalize upload.");
+      }
+
+      const uploadedKeys = completeBody.files ?? initBody.uploads.map((upload) => upload.key);
 
       if (uploadedKeys.length === 0) {
-        throw new Error("Upload API returned no file keys.");
+        throw new Error("Upload completed but no files were found.");
       }
 
       setSelection((currentSelection) => ({
@@ -91,7 +176,8 @@ export function FileUploadForm() {
         uploadedKeys,
         activeKey: uploadedKeys[0],
       }));
-      setCode(uploadCode);
+      setCode(initBody.code);
+      setUploadProgress(100);
       setStatus("success");
     } catch (error: unknown) {
       const errorMsg = getErrorMessage(error, "Failed to upload files.");
@@ -111,6 +197,7 @@ export function FileUploadForm() {
     setStatus("idle");
     setError(null);
     setCode(null);
+    setUploadProgress(0);
   };
 
   return (
@@ -164,6 +251,21 @@ export function FileUploadForm() {
                 </li>
               ))}
             </ul>
+          </div>
+        )}
+
+        {status === "uploading" && (
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+            <div className="mb-2 flex items-center justify-between text-sm font-medium text-blue-900">
+              <span>Uploading ...</span>
+              <span>{uploadProgress}%</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-blue-100">
+              <div
+                className="h-full rounded-full bg-blue-600 transition-all duration-200"
+                style={{ width: `${uploadProgress}%` }}
+              />
+            </div>
           </div>
         )}
 

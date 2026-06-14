@@ -31,7 +31,9 @@ export function RetrieveForm() {
     setLoading(true);
 
     try {
-      const response = await fetch(`/api/download?code=${code}`);
+      const response = await fetch(`/api/download?code=${encodeURIComponent(code)}`, {
+        cache: "no-store",
+      });
 
       if (!response.ok) {
         if (response.status === 404) {

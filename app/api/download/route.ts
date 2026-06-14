@@ -6,6 +6,45 @@ import { variables } from "@/lib/variables";
 import { connectToDatabase } from "@/utils/db";
 import { Content } from "@/models/dataContent.model";
 
+export const maxDuration = 60;
+
+const PRESIGNED_URL_EXPIRY = 3600;
+
+async function buildFileEntry(
+  bucketName: string,
+  fileKey: string,
+  sizeInBytes: number | undefined,
+) {
+  const fileName = fileKey.substring(fileKey.lastIndexOf("/") + 1);
+
+  const [presignedUrl, directDownloadLink] = await Promise.all([
+    getSignedUrl(
+      s3,
+      new GetObjectCommand({
+        Bucket: bucketName,
+        Key: fileKey,
+      }),
+      { expiresIn: PRESIGNED_URL_EXPIRY },
+    ),
+    getSignedUrl(
+      s3,
+      new GetObjectCommand({
+        Bucket: bucketName,
+        Key: fileKey,
+        ResponseContentDisposition: `attachment; filename="${fileName}"`,
+      }),
+      { expiresIn: PRESIGNED_URL_EXPIRY },
+    ),
+  ]);
+
+  return {
+    fileName,
+    sizeInBytes: sizeInBytes ?? 0,
+    presignedUrl,
+    directDownloadLink,
+  };
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -14,103 +53,80 @@ export async function GET(req: NextRequest) {
     if (!code) {
       return NextResponse.json(
         { error: "Code parameter is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    // Connect to MongoDB
     await connectToDatabase();
 
-    // Check if code exists in MongoDB
-    const contentRecord = await Content.findOne({ code });
+    const contentRecord = await Content.findOne({ code })
+      .select("data")
+      .lean();
 
     if (!contentRecord) {
+      return NextResponse.json({ error: "No data found" }, { status: 404 });
+    }
+
+    if (contentRecord.data) {
       return NextResponse.json(
-        { error: "No data found" },
-        { status: 404 }
+        {
+          data: contentRecord.data,
+          source: "database",
+        },
+        {
+          headers: {
+            "Cache-Control": "private, no-store",
+          },
+        },
       );
     }
 
-    // If data field is present, return it
-    if (contentRecord.data) {
-      return NextResponse.json({ 
-        data: contentRecord.data,
-        source: "database"
-      });
+    const bucketName = variables.BUCKET_NAME;
+    if (!bucketName) {
+      throw new Error("Storage bucket is not configured");
     }
 
-    // If no data, check for folder in R2
-    const prefix = `data/${code.endsWith("/") ? code : `${code}/`}`;
-    const bucketName = variables.BUCKET_NAME;
+    const prefix = `data/${code}/`;
 
     const listResponse = await s3.send(
       new ListObjectsV2Command({
         Bucket: bucketName,
         Prefix: prefix,
-      })
+      }),
     );
 
-    // Check if folder exists with at least 1 file
-    if (!listResponse.Contents || listResponse.Contents.length === 0) {
-      return NextResponse.json(
-        { error: "No data found", list : listResponse },
-        { status: 404 }
-      );
+    const objects =
+      listResponse.Contents?.filter(
+        (item) => item.Key && !item.Key.endsWith("/"),
+      ) ?? [];
+
+    if (objects.length === 0) {
+      return NextResponse.json({ error: "No data found" }, { status: 404 });
     }
 
+    const resolvedFiles = await Promise.all(
+      objects.map((item) =>
+        buildFileEntry(bucketName, item.Key!, item.Size),
+      ),
+    );
 
-    // Map through objects to extract names and generate URLs
-    const fileListPromises = listResponse.Contents.map(async (item) => {
-      const fileKeyItem = `${item.Key}`;
-
-      // Skip directory placeholder structures if any exist
-      if (fileKeyItem.endsWith("/")) return null;
-
-      // Extract just the file name out of the full key path (e.g. "folder/sub/doc.pdf" -> "doc.pdf")
-      const fileName = fileKeyItem.substring(fileKeyItem.lastIndexOf("/") + 1);
-
-      // Generate a Secure Presigned Download URL (Expires in 1 Hour / 3600 seconds)
-      const getObjectCommand = new GetObjectCommand({
-        Bucket: bucketName,
-        Key: fileKeyItem,
-      });
-
-      const presignedUrl = await getSignedUrl(s3, getObjectCommand, {
-        expiresIn: 3600,
-      });
-
-      // Generate Direct Download Link (Requires Bucket Public Access to be turned on)
-      const downloadCommand = new GetObjectCommand({
-        Bucket: bucketName,
-        Key: fileKeyItem,
-        // Optional: This header forces the browser to download the file instead of opening it inline
-        ResponseContentDisposition: `attachment; filename="${fileName}"`,
-      });
-      const directDownloadLink = await getSignedUrl(s3, downloadCommand, {
-        expiresIn: 3600,
-      });
-
-      return {
-        fileName: fileName,
-        sizeInBytes: item.Size,
-        presignedUrl: presignedUrl,
-        directDownloadLink: directDownloadLink,
-      };
-    });
-
-    // Filter out any null values from directory placeholders
-    const resolvedFiles = (await Promise.all(fileListPromises)).filter(Boolean);
-
-    return NextResponse.json({ 
-      files: resolvedFiles,
-      source: "r2"
-    });
+    return NextResponse.json(
+      {
+        files: resolvedFiles,
+        source: "r2",
+      },
+      {
+        headers: {
+          "Cache-Control": "private, no-store",
+        },
+      },
+    );
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
 
     return NextResponse.json(
       { error: message || "Failed to process request" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

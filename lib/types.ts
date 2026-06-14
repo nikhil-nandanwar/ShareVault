@@ -7,6 +7,18 @@ export type UploadResponse = {
   error?: string;
 };
 
+export type FileInitUpload = {
+  fileName: string;
+  key: string;
+  presignedUrl: string;
+};
+
+export type FileInitResponse = {
+  code?: string;
+  uploads?: FileInitUpload[];
+  error?: string;
+};
+
 export type DownloadResponse = {
   downloadUrl?: string;
   error?: string;

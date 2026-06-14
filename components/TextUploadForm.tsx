@@ -41,6 +41,7 @@ export function TextUploadForm() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ text }),
+        cache: "no-store",
       });
 
       const data: ContentData = await response.json();

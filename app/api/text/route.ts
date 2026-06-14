@@ -1,17 +1,17 @@
-import { generateFolderName } from "@/utils/folderName";
-import { uploadToDb } from "@/utils/uploadToDB";
+import { createContentRecord } from "@/utils/createContent";
 import { NextResponse } from "next/server";
+
+export const maxDuration = 30;
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { text } = body;
 
-    // Validation
     if (!text || typeof text !== "string") {
       return NextResponse.json(
         { error: "Text content is required and must be a string" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -20,42 +20,32 @@ export async function POST(request: Request) {
     if (trimmedText.length === 0) {
       return NextResponse.json(
         { error: "Text cannot be empty" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (trimmedText.length < 3) {
       return NextResponse.json(
         { error: "Text must be at least 3 characters long" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    const code = await generateFolderName();
-
-    if (!code) {
-      throw new Error("Failed to generate folder name");
-    }
-
-    const response = await uploadToDb(code, trimmedText);
-
-    if (response !== code) {
-      throw new Error("Failed to save text to the database");
-    }
+    const code = await createContentRecord(trimmedText);
 
     return NextResponse.json(
       {
         message: "Text uploaded successfully",
-        code: response,
+        code,
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
 
     return NextResponse.json(
       { error: message || "Failed to process text" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

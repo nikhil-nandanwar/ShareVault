@@ -5,15 +5,12 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   compress: true,
   productionBrowserSourceMaps: false,
+  serverExternalPackages: ["mongoose"],
   experimental: {
     optimizePackageImports: [
       "@aws-sdk/client-s3",
       "@aws-sdk/s3-request-presigner",
     ],
-    // Allow large file uploads (default body limit is 1MB on the App Router).
-    // We forward to R2 via streamed PutObject, so this only needs to cover
-    // the multipart parse buffer — set generously up to 110MB to allow
-    // 100MB files + form overhead.
     serverActions: {
       bodySizeLimit: "110mb",
     },

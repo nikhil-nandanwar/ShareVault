@@ -1,7 +1,12 @@
 import mongoose from "mongoose";
 
 const contentSchema = new mongoose.Schema({
-  code: String,
+  code: {
+    type: String,
+    required: true,
+    unique: true,
+    index: true,
+  },
   data: {
     type: String,
     required: false,
@@ -13,6 +18,5 @@ const contentSchema = new mongoose.Schema({
   },
 });
 
-export const Content = mongoose.models.Content || mongoose.model("Content", contentSchema);
-
-
+export const Content =
+  mongoose.models.Content || mongoose.model("Content", contentSchema);
