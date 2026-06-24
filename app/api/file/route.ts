@@ -1,9 +1,6 @@
 import { s3 } from "@/lib/s3";
 import { variables } from "@/lib/variables";
-import {
-  sanitizeFileName,
-  validateFileMetas,
-} from "@/lib/fileValidation";
+import { sanitizeFileName, validateFileMetas } from "@/lib/fileValidation";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { NextRequest, NextResponse } from "next/server";
 import { Readable } from "node:stream";
@@ -16,20 +13,26 @@ export const maxDuration = 120;
 
 export async function POST(req: NextRequest) {
   const startTime = Date.now();
-  const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
-  
+  const ip =
+    req.headers.get("x-forwarded-for") ||
+    req.headers.get("x-real-ip") ||
+    "unknown";
+
   try {
     logger.apiRequest("POST", "/api/file", { ip });
 
     // Rate limiting based on IP
     const rateLimit = checkRateLimit(ip);
-    
+
     if (!rateLimit.allowed) {
       const headers = getRateLimitHeaders(ip);
-      logger.warn("Rate limit exceeded", { ip, resetTime: rateLimit.resetTime });
+      logger.warn("Rate limit exceeded", {
+        ip,
+        resetTime: rateLimit.resetTime,
+      });
       return NextResponse.json(
         { error: "Rate limit exceeded. Please try again later." },
-        { status: 429, headers }
+        { status: 429, headers },
       );
     }
 
@@ -37,7 +40,9 @@ export async function POST(req: NextRequest) {
     const files = formData.getAll("files") as File[];
 
     if (!files || files.length === 0) {
-      throw new ValidationError("No files provided. Please select at least one file.");
+      throw new ValidationError(
+        "No files provided. Please select at least one file.",
+      );
     }
 
     const validationError = validateFileMetas(
@@ -59,7 +64,7 @@ export async function POST(req: NextRequest) {
       files.map(async (file) => {
         const fileName = sanitizeFileName(file.name);
         const objectKey = `data/${code}/${fileName}`;
-        
+
         logger.fileUploadStart(fileName, file.size);
 
         const command = new PutObjectCommand({
@@ -75,7 +80,7 @@ export async function POST(req: NextRequest) {
         const uploadStart = Date.now();
         await s3.send(command);
         const uploadDuration = Date.now() - uploadStart;
-        
+
         logger.fileUploadComplete(fileName, uploadDuration);
         return objectKey;
       }),
@@ -83,9 +88,9 @@ export async function POST(req: NextRequest) {
 
     const duration = Date.now() - startTime;
     const headers = getRateLimitHeaders(ip);
-    
+
     logger.apiResponse("POST", "/api/file", 200, duration);
-    
+
     return NextResponse.json(
       {
         message: `Successfully uploaded ${uploadedKeys.length} file(s)!`,

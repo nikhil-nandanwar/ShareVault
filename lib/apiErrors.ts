@@ -2,7 +2,7 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public statusCode: number = 500,
-    public code: string = "INTERNAL_ERROR"
+    public code: string = "INTERNAL_ERROR",
   ) {
     super(message);
     this.name = "ApiError";
@@ -37,7 +37,7 @@ export function handleApiError(error: unknown): Response {
         error: error.message,
         code: error.code,
       },
-      { status: error.statusCode }
+      { status: error.statusCode },
     );
   }
 
@@ -48,7 +48,7 @@ export function handleApiError(error: unknown): Response {
         error: "An unexpected error occurred",
         code: "INTERNAL_ERROR",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
@@ -58,6 +58,6 @@ export function handleApiError(error: unknown): Response {
       error: "An unexpected error occurred",
       code: "INTERNAL_ERROR",
     },
-    { status: 500 }
+    { status: 500 },
   );
 }

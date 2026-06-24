@@ -44,7 +44,7 @@ export default function RetrievePage() {
               Retrieve
             </p>
             <h1 className="text-3xl font-bold text-gray-900 sm:text-4xl">
-              Retrieve Files
+              Retrieve Content
             </h1>
             <p className="mt-3 text-base text-gray-600">
               Enter the retrieval code to access shared content.

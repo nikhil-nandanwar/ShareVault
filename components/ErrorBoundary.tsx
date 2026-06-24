@@ -51,7 +51,11 @@ export class ErrorBoundary extends Component<Props, State> {
                   {this.state.error?.message || "An unexpected error occurred"}
                 </AlertDescription>
               </Alert>
-              <Button onClick={this.handleReset} variant="primary" className="w-full">
+              <Button
+                onClick={this.handleReset}
+                variant="primary"
+                className="w-full"
+              >
                 Try Again
               </Button>
             </CardContent>

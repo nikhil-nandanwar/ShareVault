@@ -84,22 +84,22 @@ export function validateFileMetas(files: FileMeta[]): string | null {
 export function sanitizeFileName(name: string): string {
   // Remove dangerous patterns
   let sanitized = name;
-  
+
   for (const pattern of DANGEROUS_PATTERNS) {
     sanitized = sanitized.replace(pattern, "");
   }
-  
+
   // Replace remaining special characters with underscores
   sanitized = sanitized.replace(/[/\\]/g, "_");
-  
+
   // Trim and limit length
   sanitized = sanitized.trim().slice(0, MAX_FILENAME_LENGTH);
-  
+
   // Ensure filename is not empty after sanitization
   if (!sanitized) {
     sanitized = "unnamed_file";
   }
-  
+
   return sanitized;
 }
 

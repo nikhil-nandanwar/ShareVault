@@ -15,28 +15,35 @@ const invalidVars: { var: EnvVar; reason: string }[] = [];
 
 for (const [key, description] of Object.entries(requiredEnvVars)) {
   const value = process.env[key];
-  
+
   if (!value) {
     missingVars.push(key as EnvVar);
     continue;
   }
 
   if (typeof value !== "string" || value.trim() === "") {
-    invalidVars.push({ var: key as EnvVar, reason: "Value is empty or not a string" });
+    invalidVars.push({
+      var: key as EnvVar,
+      reason: "Value is empty or not a string",
+    });
   }
 }
 
 if (missingVars.length > 0 || invalidVars.length > 0) {
   const errors: string[] = [];
-  
+
   if (missingVars.length > 0) {
-    errors.push(`Missing environment variables:\n${missingVars.map(v => `  - ${v} (${requiredEnvVars[v as EnvVar]})`).join("\n")}`);
+    errors.push(
+      `Missing environment variables:\n${missingVars.map((v) => `  - ${v} (${requiredEnvVars[v as EnvVar]})`).join("\n")}`,
+    );
   }
-  
+
   if (invalidVars.length > 0) {
-    errors.push(`Invalid environment variables:\n${invalidVars.map(v => `  - ${v.var}: ${v.reason}`).join("\n")}`);
+    errors.push(
+      `Invalid environment variables:\n${invalidVars.map((v) => `  - ${v.var}: ${v.reason}`).join("\n")}`,
+    );
   }
-  
+
   throw new Error(`Environment validation failed:\n${errors.join("\n\n")}`);
 }
 

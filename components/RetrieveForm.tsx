@@ -2,6 +2,8 @@
 
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { Button } from "@/components/ui/Button";
+import { Alert, AlertDescription } from "@/components/ui/Alert";
+import { Card, CardContent } from "@/components/ui/Card";
 import { RetrieveResponse } from "@/lib/types";
 import { FormEvent, useState } from "react";
 
@@ -16,6 +18,7 @@ export function RetrieveForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<RetrieveResult | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const validate = (value: string) => /^\d{6}$/.test(value);
 
@@ -97,15 +100,15 @@ export function RetrieveForm() {
   };
 
   return (
-    <div className="px-6 py-8 sm:px-8">
-      {error && (
-        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4">
-          <p className="text-sm font-medium text-red-800">{error}</p>
-        </div>
-      )}
+    <Card className="max-w-3xl mx-auto">
+      <CardContent>
+        {error && (
+          <Alert variant="error" className="mb-6">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
-      <form onSubmit={handleSubmit} className="mb-8">
-        <div className="space-y-4">
+        <form onSubmit={handleSubmit} className="mb-8 space-y-4">
           <div>
             <label
               htmlFor="code"
@@ -113,7 +116,7 @@ export function RetrieveForm() {
             >
               Retrieval Code
             </label>
-            <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="flex flex-col ">
               <input
                 id="code"
                 name="code"
@@ -127,112 +130,116 @@ export function RetrieveForm() {
                 placeholder="123456"
                 maxLength={6}
                 disabled={loading}
-                className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-3 text-base text-gray-900 placeholder-gray-400 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50 disabled:text-gray-500"
+                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-base text-gray-900 placeholder-gray-400 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50 disabled:text-gray-500"
               />
+              <p className="mb-4 text-xs text-gray-500">
+                Enter the 6-digit code you received when content was uploaded.
+              </p>
               <Button
                 type="submit"
                 disabled={loading || !validate(code)}
                 isLoading={loading}
                 isCompleted={!!result}
+                className="w-full"
               >
                 Retrieve
               </Button>
             </div>
-            <p className="mt-2 text-xs text-gray-500">
-              Enter the 6-digit code you received when content was uploaded.
-            </p>
           </div>
-        </div>
-      </form>
+        </form>
 
-      {result && result.type === "text" && (
-        <div className="space-y-4">
-          <div className="rounded-lg border border-green-200 bg-green-50 p-4">
-            <p className="text-sm font-medium text-green-800">
-              Text content retrieved successfully.
-            </p>
-          </div>
-
-          <div className="flex gap-2 justify-end">
-            <Button
-              onClick={() => {
-                if (result.data) {
-                  navigator.clipboard.writeText(result.data);
-                }
-              }}
-              size="sm"
-            >
-              Copy
-            </Button>
-          </div>
-
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-6">
-            <div className="prose prose-sm max-w-none">
-              <p className="text-gray-900 whitespace-pre-wrap wrap-break-word">
-                {result.data}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {result &&
-        result.type === "files" &&
-        result.files &&
-        result.files.length > 0 && (
+        {result && result.type === "text" && (
           <div className="space-y-4">
-            <div className="rounded-lg border border-green-200 bg-green-50 p-4">
-              <p className="text-sm font-medium text-green-800">
-                {result.files.length} file
-                {result.files.length !== 1 ? "s" : ""} found and ready for
-                download.
-              </p>
+            <Alert variant="success">
+              <AlertDescription>
+                Text content retrieved successfully.
+              </AlertDescription>
+            </Alert>
+
+            <div className="flex gap-2 justify-end">
+              <Button
+                onClick={async () => {
+                  if (result.data) {
+                    await navigator.clipboard.writeText(result.data);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  }
+                }}
+                variant={copied ? "success" : "primary"}
+                size="sm"
+              >
+                {copied ? "Copied!" : "Copy"}
+              </Button>
             </div>
 
-            <div className="space-y-3">
-              {result.files.map((file, index) => (
-                <div
-                  key={index}
-                  className="flex flex-col sm:flex-row sm:items-center gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4 hover:bg-white transition"
-                >
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-gray-900 truncate">
-                      {file.fileName}
-                    </h3>
-                    <p className="mt-1 text-sm text-gray-600">
-                      {formatFileSize(file.sizeInBytes)}
-                    </p>
-                  </div>
-
-                  <div className="flex gap-2 shrink-0">
-                    <a
-                      href={file.presignedUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-all duration-200 active:scale-95 hover:scale-[1.02]"
-                    >
-                      Preview
-                    </a>
-                    <a
-                      href={file.directDownloadLink}
-                      download
-                      className="inline-flex items-center justify-center rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 transition-all duration-200 active:scale-95 hover:scale-[1.02]"
-                    >
-                      Download
-                    </a>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
-              <p className="text-sm text-blue-800">
-                Download links expire after 1 hour. Please download your files
-                within this time frame.
-              </p>
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-6">
+              <div className="prose prose-sm max-w-none">
+                <p className="text-gray-900 whitespace-pre-wrap wrap-break-word">
+                  {result.data}
+                </p>
+              </div>
             </div>
           </div>
         )}
-    </div>
+
+        {result &&
+          result.type === "files" &&
+          result.files &&
+          result.files.length > 0 && (
+            <div className="space-y-4">
+              <Alert variant="success">
+                <AlertDescription>
+                  {result.files.length} file
+                  {result.files.length !== 1 ? "s" : ""} found and ready for
+                  download.
+                </AlertDescription>
+              </Alert>
+
+              <div className="space-y-3">
+                {result.files.map((file, index) => (
+                  <div
+                    key={index}
+                    className="flex flex-col sm:flex-row sm:items-center gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4 hover:bg-white transition"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-gray-900 truncate">
+                        {file.fileName}
+                      </h3>
+                      <p className="mt-1 text-sm text-gray-600">
+                        {formatFileSize(file.sizeInBytes)}
+                      </p>
+                    </div>
+
+                    <div className="flex gap-2 shrink-0">
+                      <a
+                        href={file.presignedUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-all duration-200 active:scale-95 hover:scale-[1.02]"
+                      >
+                        Preview
+                      </a>
+                      <a
+                        href={file.directDownloadLink}
+                        download
+                        className="inline-flex items-center justify-center rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 transition-all duration-200 active:scale-95 hover:scale-[1.02]"
+                      >
+                        Download
+                      </a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <Alert variant="info" className="mt-6">
+                <AlertDescription>
+                  Download links expire after 1 hour. Please download your files
+                  within this time frame.
+                </AlertDescription>
+              </Alert>
+            </div>
+          )}
+      </CardContent>
+    </Card>
   );
 }

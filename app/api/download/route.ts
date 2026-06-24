@@ -59,9 +59,7 @@ export async function GET(req: NextRequest) {
 
     await connectToDatabase();
 
-    const contentRecord = await Content.findOne({ code })
-      .select("data")
-      .lean();
+    const contentRecord = await Content.findOne({ code }).select("data").lean();
 
     if (!contentRecord) {
       return NextResponse.json({ error: "No data found" }, { status: 404 });
@@ -105,9 +103,7 @@ export async function GET(req: NextRequest) {
     }
 
     const resolvedFiles = await Promise.all(
-      objects.map((item) =>
-        buildFileEntry(bucketName, item.Key!, item.Size),
-      ),
+      objects.map((item) => buildFileEntry(bucketName, item.Key!, item.Size)),
     );
 
     return NextResponse.json(

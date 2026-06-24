@@ -5,11 +5,8 @@ import { Alert, AlertDescription } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import {
-  UploadResponse,
-  UploadSelection,
-  UploadStatus,
-} from "@/lib/types";
+import { X } from "lucide-react";
+import { UploadResponse, UploadSelection, UploadStatus } from "@/lib/types";
 import { useState, type ChangeEvent, type FormEvent } from "react";
 
 function createInitialSelection(): UploadSelection {
@@ -35,8 +32,6 @@ function formatFileSize(bytes: number): string {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
 }
-
-
 
 export function FileUploadForm() {
   const [status, setStatus] = useState<UploadStatus>("idle");
@@ -111,6 +106,7 @@ export function FileUploadForm() {
         ...currentSelection,
         uploadedKeys,
         activeKey: uploadedKeys[0],
+        files: [],
       }));
       setCode(code);
       setUploadProgress(100);
@@ -130,6 +126,13 @@ export function FileUploadForm() {
     }
   };
 
+  const removeFile = (index: number) => {
+    setSelection((currentSelection) => ({
+      ...currentSelection,
+      files: currentSelection.files.filter((_, i) => i !== index),
+    }));
+  };
+
   const resetForm = () => {
     setSelection(createInitialSelection());
     setStatus("idle");
@@ -141,8 +144,6 @@ export function FileUploadForm() {
 
   return (
     <Card className="max-w-4xl mx-auto">
-     
-
       <CardContent>
         {error && (
           <Alert variant="error" className="mb-6">
@@ -194,13 +195,17 @@ export function FileUploadForm() {
                 <Badge variant="default">{selection.files.length} / 10</Badge>
               </h3>
               <ul className="space-y-2">
-                {selection.files.map((file) => (
+                {selection.files.map((file, index) => (
                   <li
                     key={`${file.name}-${file.size}-${file.lastModified}`}
                     className="flex items-center justify-between rounded-lg bg-white px-4 py-3 border border-gray-200 hover:border-blue-300 transition-colors"
                   >
                     <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <span className="text-2xl" role="img" aria-label="File type icon">
+                      <span
+                        className="text-2xl"
+                        role="img"
+                        aria-label="File type icon"
+                      >
                         {}
                       </span>
                       <div className="flex-1 min-w-0">
@@ -212,6 +217,15 @@ export function FileUploadForm() {
                         </p>
                       </div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => removeFile(index)}
+                      disabled={status === "uploading"}
+                      className="ml-3 p-2 rounded-full hover:bg-red-100 text-gray-400 hover:text-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      aria-label={`Remove ${file.name}`}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -264,7 +278,8 @@ export function FileUploadForm() {
           <div className="mt-8 space-y-6 border-t border-gray-200 pt-8">
             <Alert variant="success">
               <AlertDescription>
-                Files uploaded successfully. {selection.uploadedKeys.length} file(s) ready to share.
+                Files uploaded successfully. {selection.uploadedKeys.length}{" "}
+                file(s) ready to share.
               </AlertDescription>
             </Alert>
 
@@ -286,13 +301,12 @@ export function FileUploadForm() {
                 </Button>
               </div>
               <p className="mt-3 text-xs text-blue-700">
-                Share this code with others to retrieve your files. Files expire in 7 days.
+                Share this code with others to retrieve your files. Files expire
+                in 7 days.
               </p>
             </div>
           </div>
         )}
-
-       
       </CardContent>
     </Card>
   );

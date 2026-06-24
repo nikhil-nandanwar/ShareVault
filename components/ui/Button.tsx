@@ -9,7 +9,20 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = "primary", size = "md", isLoading, isCompleted, disabled, children, onClick, ...props }, ref) => {
+  (
+    {
+      className,
+      variant = "primary",
+      size = "md",
+      isLoading,
+      isCompleted,
+      disabled,
+      children,
+      onClick,
+      ...props
+    },
+    ref,
+  ) => {
     const [isPressed, setIsPressed] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
 
@@ -23,16 +36,21 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       }
     };
 
-    const baseStyles = "inline-flex items-center justify-center rounded-lg font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 active:scale-95 hover:scale-[1.02]";
-    
+    const baseStyles =
+      "inline-flex items-center justify-center rounded-lg font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 active:scale-95 hover:scale-[1.02]";
+
     const variants = {
-      primary: "bg-blue-600 text-white hover:bg-blue-700/95 focus:ring-blue-500",
-      secondary: "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50/95 focus:ring-gray-500",
+      primary:
+        "bg-blue-600 text-white hover:bg-blue-700/95 focus:ring-blue-500",
+      secondary:
+        "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50/95 focus:ring-gray-500",
       danger: "bg-red-600 text-white hover:bg-red-700/95 focus:ring-red-500",
-      ghost: "bg-transparent text-gray-700 hover:bg-gray-100/95 focus:ring-gray-500",
-      success: "bg-green-600 text-white hover:bg-green-700/95 focus:ring-green-500",
+      ghost:
+        "bg-transparent text-gray-700 hover:bg-gray-100/95 focus:ring-gray-500",
+      success:
+        "bg-green-600 text-white hover:bg-green-700/95 focus:ring-green-500",
     };
-    
+
     const sizes = {
       sm: "px-4 py-2 text-sm",
       md: "px-6 py-3 text-sm",
@@ -40,12 +58,21 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     };
 
     const loadingStyles = isLoading ? "opacity-80 cursor-wait" : "";
-    const completedStyles = showSuccess ? "ring-2 ring-green-500 ring-offset-2 button-success" : "";
-    
+    const completedStyles = showSuccess
+      ? "ring-2 ring-green-500 ring-offset-2 button-success"
+      : "";
+
     return (
       <button
         ref={ref}
-        className={cn(baseStyles, variants[variant], sizes[size], loadingStyles, completedStyles, className)}
+        className={cn(
+          baseStyles,
+          variants[variant],
+          sizes[size],
+          loadingStyles,
+          completedStyles,
+          className,
+        )}
         disabled={disabled || isLoading}
         onMouseDown={() => setIsPressed(true)}
         onMouseUp={() => setIsPressed(false)}
@@ -94,7 +121,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         {children}
       </button>
     );
-  }
+  },
 );
 
 Button.displayName = "Button";

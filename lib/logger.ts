@@ -18,7 +18,12 @@ class Logger {
     return `[${timestamp}] [${level.toUpperCase()}] ${message}${contextStr}${errorStr}`;
   }
 
-  private log(level: LogLevel, message: string, context?: Record<string, unknown>, error?: Error) {
+  private log(
+    level: LogLevel,
+    message: string,
+    context?: Record<string, unknown>,
+    error?: Error,
+  ) {
     const entry: LogEntry = {
       level,
       message,
@@ -71,7 +76,12 @@ class Logger {
     this.info(`${method} ${path}`, { ...context, type: "api_request" });
   }
 
-  apiResponse(method: string, path: string, statusCode: number, duration: number) {
+  apiResponse(
+    method: string,
+    path: string,
+    statusCode: number,
+    duration: number,
+  ) {
     this.info(`${method} ${path} - ${statusCode} (${duration}ms)`, {
       type: "api_response",
       statusCode,
@@ -79,8 +89,16 @@ class Logger {
     });
   }
 
-  apiError(method: string, path: string, error: Error, context?: Record<string, unknown>) {
-    this.error(`${method} ${path} - Error`, error, { ...context, type: "api_error" });
+  apiError(
+    method: string,
+    path: string,
+    error: Error,
+    context?: Record<string, unknown>,
+  ) {
+    this.error(`${method} ${path} - Error`, error, {
+      ...context,
+      type: "api_error",
+    });
   }
 
   // Database logging

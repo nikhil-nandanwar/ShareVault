@@ -56,7 +56,9 @@ export default function FileSharePage() {
             </h2>
             <ul className="space-y-2 text-sm text-gray-600 list-disc pl-5">
               <li>Maximum 10 files per upload, 100MB per file</li>
-              <li>Supported: images, PDFs, Office docs, archives, plain text</li>
+              <li>
+                Supported: images, PDFs, Office docs, archives, plain text
+              </li>
               <li>Files are stored encrypted and expire automatically</li>
             </ul>
           </div>
