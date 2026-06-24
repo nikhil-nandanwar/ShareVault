@@ -1,6 +1,7 @@
 "use client";
 
 import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { Button } from "@/components/ui/Button";
 import { RetrieveResponse } from "@/lib/types";
 import { FormEvent, useState } from "react";
 
@@ -128,20 +129,14 @@ export function RetrieveForm() {
                 disabled={loading}
                 className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-3 text-base text-gray-900 placeholder-gray-400 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50 disabled:text-gray-500"
               />
-              <button
+              <Button
                 type="submit"
                 disabled={loading || !validate(code)}
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-400 shrink-0"
+                isLoading={loading}
+                isCompleted={!!result}
               >
-                {loading ? (
-                  <>
-                    <LoadingSpinner size="sm" />
-                    Retrieving...
-                  </>
-                ) : (
-                  "Retrieve"
-                )}
-              </button>
+                Retrieve
+              </Button>
             </div>
             <p className="mt-2 text-xs text-gray-500">
               Enter the 6-digit code you received when content was uploaded.
@@ -159,16 +154,16 @@ export function RetrieveForm() {
           </div>
 
           <div className="flex gap-2 justify-end">
-            <button
+            <Button
               onClick={() => {
                 if (result.data) {
                   navigator.clipboard.writeText(result.data);
                 }
               }}
-              className="inline-flex rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition"
+              size="sm"
             >
               Copy
-            </button>
+            </Button>
           </div>
 
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-6">
@@ -214,14 +209,14 @@ export function RetrieveForm() {
                       href={file.presignedUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition"
+                      className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-all duration-200 active:scale-95 hover:scale-[1.02]"
                     >
                       Preview
                     </a>
                     <a
                       href={file.directDownloadLink}
                       download
-                      className="inline-flex rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 transition"
+                      className="inline-flex items-center justify-center rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 transition-all duration-200 active:scale-95 hover:scale-[1.02]"
                     >
                       Download
                     </a>

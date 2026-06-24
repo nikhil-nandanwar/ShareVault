@@ -1,8 +1,11 @@
 "use client";
 
 import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { Alert, AlertDescription } from "@/components/ui/Alert";
+import { Button } from "@/components/ui/Button";
+import { Card, CardContent } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
 import {
-  FileInitResponse,
   UploadResponse,
   UploadSelection,
   UploadStatus,
@@ -25,38 +28,15 @@ function getErrorMessage(error: unknown, fallbackMessage: string): string {
   return fallbackMessage;
 }
 
-function uploadFileToR2(
-  file: File,
-  presignedUrl: string,
-  onProgress: (loaded: number) => void,
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-
-    xhr.upload.addEventListener("progress", (event) => {
-      if (event.lengthComputable) {
-        onProgress(event.loaded);
-      }
-    });
-
-    xhr.addEventListener("load", () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        resolve();
-        return;
-      }
-
-      reject(new Error(`Upload failed for "${file.name}" (${xhr.status})`));
-    });
-
-    xhr.addEventListener("error", () => {
-      reject(new Error(`Network error while uploading "${file.name}"`));
-    });
-
-    xhr.open("PUT", presignedUrl);
-    xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
-    xhr.send(file);
-  });
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return "0 Bytes";
+  const k = 1024;
+  const sizes = ["Bytes", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
 }
+
+
 
 export function FileUploadForm() {
   const [status, setStatus] = useState<UploadStatus>("idle");
@@ -66,6 +46,7 @@ export function FileUploadForm() {
   const [error, setError] = useState<string | null>(null);
   const [code, setCode] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [copied, setCopied] = useState(false);
 
   const hasSelectedFiles = selection.files.length > 0;
   const hasUploadedFiles = selection.uploadedKeys.length > 0;
@@ -102,70 +83,25 @@ export function FileUploadForm() {
         downloadUrl: "",
       }));
 
-      const initResponse = await fetch("/api/file/init", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          files: selection.files.map((file) => ({
-            name: file.name,
-            size: file.size,
-            type: file.type,
-          })),
-        }),
+      const formData = new FormData();
+      selection.files.forEach((file) => {
+        formData.append("files", file);
       });
 
-      const initBody: FileInitResponse = await initResponse
-        .json()
-        .catch(() => ({}));
-
-      if (!initResponse.ok) {
-        throw new Error(initBody.error ?? "Failed to prepare file upload.");
-      }
-
-      if (!initBody.code || !initBody.uploads?.length) {
-        throw new Error("Upload API returned an invalid upload session.");
-      }
-
-      const totalBytes = selection.files.reduce((sum, file) => sum + file.size, 0);
-      const loadedByFile = new Array(selection.files.length).fill(0);
-
-      await Promise.all(
-        initBody.uploads.map((upload, index) => {
-          const file = selection.files[index];
-
-          if (!file) {
-            throw new Error("Upload session does not match selected files.");
-          }
-
-          return uploadFileToR2(file, upload.presignedUrl, (loaded) => {
-            loadedByFile[index] = loaded;
-            const totalLoaded = loadedByFile.reduce((sum, value) => sum + value, 0);
-            setUploadProgress(
-              totalBytes > 0 ? Math.round((totalLoaded / totalBytes) * 100) : 0,
-            );
-          });
-        }),
-      );
-
-      const completeResponse = await fetch("/api/file/complete", {
+      const response = await fetch("/api/file", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ code: initBody.code }),
+        body: formData,
       });
 
-      const completeBody: UploadResponse = await completeResponse
-        .json()
-        .catch(() => ({}));
+      const body: UploadResponse = await response.json().catch(() => ({}));
 
-      if (!completeResponse.ok) {
-        throw new Error(completeBody.error ?? "Failed to finalize upload.");
+      if (!response.ok) {
+        console.log("UPLOAD ERROR", body);
+        throw new Error(body.error ?? "Failed to upload files.");
       }
 
-      const uploadedKeys = completeBody.files ?? initBody.uploads.map((upload) => upload.key);
+      const uploadedKeys = body.files ?? [];
+      const code = body.code ?? "";
 
       if (uploadedKeys.length === 0) {
         throw new Error("Upload completed but no files were found.");
@@ -176,7 +112,7 @@ export function FileUploadForm() {
         uploadedKeys,
         activeKey: uploadedKeys[0],
       }));
-      setCode(initBody.code);
+      setCode(code);
       setUploadProgress(100);
       setStatus("success");
     } catch (error: unknown) {
@@ -186,9 +122,11 @@ export function FileUploadForm() {
     }
   };
 
-  const handleCopyCode = () => {
+  const handleCopyCode = async () => {
     if (code) {
-      navigator.clipboard.writeText(code);
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     }
   };
 
@@ -198,134 +136,164 @@ export function FileUploadForm() {
     setError(null);
     setCode(null);
     setUploadProgress(0);
+    setCopied(false);
   };
 
   return (
-    <div className="px-6 py-8 sm:px-8">
-      {error && (
-        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4">
-          <p className="text-sm font-medium text-red-800">{error}</p>
-        </div>
-      )}
+    <Card className="max-w-4xl mx-auto">
+     
 
-      <form onSubmit={handleUpload} className="space-y-6">
-        <div className="rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-8 transition hover:border-blue-400 hover:bg-white">
-          <label className="cursor-pointer">
-            <div className="text-center">
-              <p className="text-sm font-semibold text-gray-900 mb-2">
-                Click to upload or drag and drop
-              </p>
-              <p className="text-xs text-gray-500">
-                PNG, JPG, PDF, DOC, or any file up to 100MB
-              </p>
-            </div>
-            <input
-              type="file"
-              multiple
-              onChange={handleFileChange}
-              disabled={status === "uploading"}
-              className="hidden"
-            />
-          </label>
-        </div>
-
-        {hasSelectedFiles && (
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">
-              Selected Files ({selection.files.length})
-            </h3>
-            <ul className="space-y-2">
-              {selection.files.map((file) => (
-                <li
-                  key={`${file.name}-${file.size}-${file.lastModified}`}
-                  className="flex items-center justify-between rounded-lg bg-white px-4 py-3 border border-gray-200"
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {file.name}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {(file.size / 1024 / 1024).toFixed(2)} MB
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
+      <CardContent>
+        {error && (
+          <Alert variant="error" className="mb-6">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
         )}
 
-        {status === "uploading" && (
-          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
-            <div className="mb-2 flex items-center justify-between text-sm font-medium text-blue-900">
-              <span>Uploading ...</span>
-              <span>{uploadProgress}%</span>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-blue-100">
-              <div
-                className="h-full rounded-full bg-blue-600 transition-all duration-200"
-                style={{ width: `${uploadProgress}%` }}
+        <form onSubmit={handleUpload} className="space-y-6">
+          <div className="rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-8 transition-all duration-200 hover:border-blue-400 hover:bg-white focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20">
+            <label className="cursor-pointer block">
+              <div className="text-center">
+                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
+                  <svg
+                    className="h-6 w-6 text-blue-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                    />
+                  </svg>
+                </div>
+                <p className="text-sm font-semibold text-gray-900 mb-2">
+                  Click to upload or drag and drop
+                </p>
+                <p className="text-xs text-gray-500">
+                  PNG, JPG, PDF, DOC, or any file up to 100MB
+                </p>
+              </div>
+              <input
+                type="file"
+                multiple
+                onChange={handleFileChange}
+                disabled={status === "uploading"}
+                className="hidden"
+                aria-label="Upload files"
               />
+            </label>
+          </div>
+
+          {hasSelectedFiles && (
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center justify-between">
+                <span>Selected Files ({selection.files.length})</span>
+                <Badge variant="default">{selection.files.length} / 10</Badge>
+              </h3>
+              <ul className="space-y-2">
+                {selection.files.map((file) => (
+                  <li
+                    key={`${file.name}-${file.size}-${file.lastModified}`}
+                    className="flex items-center justify-between rounded-lg bg-white px-4 py-3 border border-gray-200 hover:border-blue-300 transition-colors"
+                  >
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <span className="text-2xl" role="img" aria-label="File type icon">
+                        {}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {file.name}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {formatFileSize(file.size)}
+                        </p>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {status === "uploading" && (
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+              <div className="mb-2 flex items-center justify-between text-sm font-medium text-blue-900">
+                <span className="flex items-center gap-2">
+                  <LoadingSpinner size="sm" />
+                  Uploading files...
+                </span>
+                <span>{uploadProgress}%</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-blue-100">
+                <div
+                  className="h-full rounded-full bg-blue-600 transition-all duration-300 ease-out"
+                  style={{ width: `${uploadProgress}%` }}
+                  role="progressbar"
+                  aria-valuenow={uploadProgress}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+            <Button
+              type="button"
+              onClick={resetForm}
+              disabled={status === "uploading"}
+              variant="secondary"
+            >
+              Clear
+            </Button>
+            <Button
+              type="submit"
+              disabled={!hasSelectedFiles || status === "uploading"}
+              isLoading={status === "uploading"}
+              isCompleted={status === "success"}
+            >
+              Upload Files
+            </Button>
+          </div>
+        </form>
+
+        {status === "success" && hasUploadedFiles && code && (
+          <div className="mt-8 space-y-6 border-t border-gray-200 pt-8">
+            <Alert variant="success">
+              <AlertDescription>
+                Files uploaded successfully. {selection.uploadedKeys.length} file(s) ready to share.
+              </AlertDescription>
+            </Alert>
+
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-6">
+              <h3 className="text-sm font-semibold text-blue-900 mb-3">
+                Retrieval Code
+              </h3>
+              <div className="flex items-center gap-3">
+                <code className="flex-1 rounded-lg bg-white px-4 py-3 font-mono text-lg font-bold text-gray-900 border border-blue-200 text-center">
+                  {code}
+                </code>
+                <Button
+                  type="button"
+                  onClick={handleCopyCode}
+                  variant={copied ? "success" : "primary"}
+                  size="md"
+                >
+                  {copied ? "Copied!" : "Copy"}
+                </Button>
+              </div>
+              <p className="mt-3 text-xs text-blue-700">
+                Share this code with others to retrieve your files. Files expire in 7 days.
+              </p>
             </div>
           </div>
         )}
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
-          <button
-            type="button"
-            onClick={resetForm}
-            disabled={status === "uploading"}
-            className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-6 py-3 text-sm font-semibold text-gray-700 transition hover:border-gray-400 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Clear
-          </button>
-          <button
-            type="submit"
-            disabled={!hasSelectedFiles || status === "uploading"}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-400"
-          >
-            {status === "uploading" ? (
-              <>
-                <LoadingSpinner size="sm" />
-                Uploading...
-              </>
-            ) : (
-              "Upload Files"
-            )}
-          </button>
-        </div>
-      </form>
-
-      {status === "success" && hasUploadedFiles && code && (
-        <div className="mt-8 space-y-6 border-t border-gray-200 pt-8">
-          <div className="rounded-lg border border-green-200 bg-green-50 p-4">
-            <p className="text-sm font-medium text-green-800">
-              Files uploaded successfully. {selection.uploadedKeys.length}{" "}
-              file(s) ready to share.
-            </p>
-          </div>
-
-          <div className="rounded-lg border border-blue-200 bg-blue-50 p-6">
-            <p className="text-sm font-semibold text-blue-900 mb-3">
-              Retrieval Code
-            </p>
-            <div className="flex items-center gap-3">
-              <code className="flex-1 rounded-lg bg-white px-4 py-3 font-mono text-lg font-bold text-gray-900 border border-blue-200">
-                {code}
-              </code>
-              <button
-                type="button"
-                onClick={handleCopyCode}
-                className="shrink-0 rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 transition"
-              >
-                Copy
-              </button>
-            </div>
-            <p className="mt-3 text-xs text-blue-700">
-              Share this code with others to retrieve your files.
-            </p>
-          </div>
-        </div>
-      )}
-    </div>
+       
+      </CardContent>
+    </Card>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { Button } from "@/components/ui/Button";
 import { FormEvent, useState } from "react";
 
 type ContentData = {
@@ -119,28 +120,22 @@ export function TextUploadForm() {
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
-        <button
+        <Button
           type="button"
           onClick={handleReset}
           disabled={loading || (!text && !success)}
-          className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-6 py-3 text-sm font-semibold text-gray-700 transition hover:border-gray-400 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+          variant="secondary"
         >
           Clear
-        </button>
-        <button
+        </Button>
+        <Button
           type="submit"
           disabled={loading}
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-400"
+          isLoading={loading}
+          isCompleted={success}
         >
-          {loading ? (
-            <>
-              <LoadingSpinner size="sm" />
-              Uploading...
-            </>
-          ) : (
-            "Upload Text"
-          )}
-        </button>
+          Upload Text
+        </Button>
       </div>
 
       {success && code && (
@@ -152,13 +147,13 @@ export function TextUploadForm() {
             <code className="flex-1 rounded bg-white px-4 py-3 font-mono text-lg font-bold text-gray-900 border border-blue-200">
               {code}
             </code>
-            <button
+            <Button
               type="button"
               onClick={handleCopyCode}
-              className="shrink-0 rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 transition"
+              size="md"
             >
               Copy
-            </button>
+            </Button>
           </div>
           <p className="mt-3 text-xs text-blue-700">
             Share this code with others. They can use it on the Retrieve page to

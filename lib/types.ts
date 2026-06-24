@@ -7,18 +7,6 @@ export type UploadResponse = {
   error?: string;
 };
 
-export type FileInitUpload = {
-  fileName: string;
-  key: string;
-  presignedUrl: string;
-};
-
-export type FileInitResponse = {
-  code?: string;
-  uploads?: FileInitUpload[];
-  error?: string;
-};
-
 export type DownloadResponse = {
   downloadUrl?: string;
   error?: string;
@@ -36,4 +24,25 @@ export type RetrieveResponse = {
   sizeInBytes: number;
   presignedUrl: string;
   directDownloadLink: string;
+};
+
+export type ApiResponse<T = unknown> = {
+  data?: T;
+  error?: string;
+  code?: string;
+  message?: string;
+};
+
+export type PaginationParams = {
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+};
+
+export type FileMetadata = {
+  name: string;
+  size: number;
+  type: string;
+  lastModified: number;
 };
