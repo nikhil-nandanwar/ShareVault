@@ -6,6 +6,7 @@ const requiredEnvVars = {
   MONGO_USERNAME: "MongoDB username",
   MONGO_PASSWORD: "MongoDB password",
   MONGO_DB_NAME: "MongoDB database name",
+  REFRESH_TOKEN_PASSWORD: "Password used to generate refresh tokens",
 } as const;
 
 type EnvVar = keyof typeof requiredEnvVars;
@@ -57,4 +58,5 @@ export const env = {
   MONGO_DB_NAME: process.env.MONGO_DB_NAME!,
   VERCEL_URL: process.env.VERCEL_URL,
   NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
+  CRON_PASS: process.env.REFRESH_TOKEN_PASSWORD!,
 } as const;
