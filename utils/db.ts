@@ -1,7 +1,7 @@
 import { variables } from "@/lib/variables";
 import mongoose from "mongoose";
 
-const uri = `mongodb+srv://${variables.MONGO_USERNAME}:${variables.MONGO_PASSWORD}@cluster0.pxlkh.mongodb.net/${variables.MONGO_DB_NAME}`;
+const uri = `mongodb+srv://${variables.MONGO_USERNAME}:${variables.MONGO_PASSWORD}@cluster0.ux8dpnv.mongodb.net/${variables.MONGO_DB_NAME}`;
 
 interface MongooseCache {
   conn: typeof mongoose | null;

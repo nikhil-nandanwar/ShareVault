@@ -1,13 +1,10 @@
-import { s3 } from "@/lib/s3";
-import { variables } from "@/lib/variables";
 import { sanitizeFileName, validateFileMetas } from "@/lib/fileValidation";
-import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { NextRequest, NextResponse } from "next/server";
-import { Readable } from "node:stream";
 import { createContentRecord } from "@/utils/createContent";
 import { ValidationError, handleApiError } from "@/lib/apiErrors";
 import { checkRateLimit, getRateLimitHeaders } from "@/lib/rateLimit";
 import { logger } from "@/lib/logger";
+import { uploadFileMultipart } from "@/lib/multipartUpload";
 
 export const maxDuration = 120;
 
@@ -67,18 +64,8 @@ export async function POST(req: NextRequest) {
 
         logger.fileUploadStart(fileName, file.size);
 
-        const command = new PutObjectCommand({
-          Bucket: variables.BUCKET_NAME,
-          Key: objectKey,
-          Body: Readable.fromWeb(
-            file.stream() as Parameters<typeof Readable.fromWeb>[0],
-          ),
-          ContentType: file.type,
-          ContentLength: file.size,
-        });
-
         const uploadStart = Date.now();
-        await s3.send(command);
+        await uploadFileMultipart(objectKey, file);
         const uploadDuration = Date.now() - uploadStart;
 
         logger.fileUploadComplete(fileName, uploadDuration);
