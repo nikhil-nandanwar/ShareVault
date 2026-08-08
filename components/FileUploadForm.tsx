@@ -232,7 +232,7 @@ export function FileUploadForm() {
             </div>
           )}
 
-          {status === "uploading" && (
+          {/* {status === "uploading" && (
             <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
               <div className="mb-2 flex items-center justify-between text-sm font-medium text-blue-900">
                 <span className="flex items-center gap-2">
@@ -252,7 +252,7 @@ export function FileUploadForm() {
                 />
               </div>
             </div>
-          )}
+          )} */}
 
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
             <Button
