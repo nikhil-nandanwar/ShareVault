@@ -7,6 +7,28 @@ import { logger } from "@/lib/logger";
 import { uploadFileMultipart } from "@/lib/multipartUpload";
 
 export const maxDuration = 120;
+const FILE_UPLOAD_CONCURRENCY = 2;
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  mapper: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < items.length) {
+      const index = nextIndex++;
+      results[index] = await mapper(items[index], index);
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, items.length) }, () => worker()),
+  );
+  return results;
+}
 
 export async function POST(req: NextRequest) {
   const startTime = Date.now();
@@ -57,8 +79,10 @@ export async function POST(req: NextRequest) {
     const code = await createContentRecord("");
     logger.info("Generated retrieval code", { code, fileCount: files.length });
 
-    const uploadedKeys = await Promise.all(
-      files.map(async (file) => {
+    const uploadedKeys = await mapWithConcurrency(
+      files,
+      FILE_UPLOAD_CONCURRENCY,
+      async (file) => {
         const fileName = sanitizeFileName(file.name);
         const objectKey = `data/${code}/${fileName}`;
 
@@ -70,7 +94,7 @@ export async function POST(req: NextRequest) {
 
         logger.fileUploadComplete(fileName, uploadDuration);
         return objectKey;
-      }),
+      },
     );
 
     const duration = Date.now() - startTime;

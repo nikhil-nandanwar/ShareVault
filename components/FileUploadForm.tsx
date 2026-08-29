@@ -33,6 +33,54 @@ function formatFileSize(bytes: number): string {
   return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
 }
 
+function uploadFiles(
+  formData: FormData,
+  onProgress: (progress: {
+    loaded: number;
+    total: number;
+    percentage: number;
+  }) => void,
+): Promise<UploadResponse> {
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("POST", "/api/file");
+    request.responseType = "json";
+
+    request.upload.addEventListener("progress", (event) => {
+      if (event.lengthComputable && event.total > 0) {
+        // Keep 100% for the point at which the server confirms completion.
+        onProgress({
+          loaded: event.loaded,
+          total: event.total,
+          percentage: Math.min(
+            99,
+            Math.round((event.loaded / event.total) * 100),
+          ),
+        });
+      }
+    });
+
+    request.addEventListener("load", () => {
+      const body = (request.response ?? {}) as UploadResponse;
+      if (request.status >= 200 && request.status < 300) {
+        resolve(body);
+        return;
+      }
+      reject(new Error(body.error ?? "Failed to upload files."));
+    });
+
+    request.addEventListener("error", () => {
+      reject(new Error("Network error while uploading files."));
+    });
+
+    request.addEventListener("abort", () => {
+      reject(new Error("File upload was cancelled."));
+    });
+
+    request.send(formData);
+  });
+}
+
 export function FileUploadForm() {
   const [status, setStatus] = useState<UploadStatus>("idle");
   const [selection, setSelection] = useState<UploadSelection>(
@@ -41,6 +89,9 @@ export function FileUploadForm() {
   const [error, setError] = useState<string | null>(null);
   const [code, setCode] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadedBytes, setUploadedBytes] = useState(0);
+  const [totalUploadBytes, setTotalUploadBytes] = useState(0);
+  const [isServerProcessing, setIsServerProcessing] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const hasSelectedFiles = selection.files.length > 0;
@@ -56,6 +107,9 @@ export function FileUploadForm() {
       downloadUrl: "",
     });
     setUploadProgress(0);
+    setUploadedBytes(0);
+    setTotalUploadBytes(nextFiles.reduce((total, file) => total + file.size, 0));
+    setIsServerProcessing(false);
     setStatus("idle");
   };
 
@@ -71,6 +125,8 @@ export function FileUploadForm() {
     try {
       setStatus("uploading");
       setUploadProgress(0);
+      setUploadedBytes(0);
+      setIsServerProcessing(false);
       setSelection((currentSelection) => ({
         ...currentSelection,
         uploadedKeys: [],
@@ -83,17 +139,20 @@ export function FileUploadForm() {
         formData.append("files", file);
       });
 
-      const response = await fetch("/api/file", {
-        method: "POST",
-        body: formData,
+      const body = await uploadFiles(formData, (progress) => {
+        setUploadProgress(progress.percentage);
+        // XMLHttpRequest's total includes small multipart boundaries. Display
+        // selected-file bytes so the aggregate remains intuitive to users.
+        const selectedBytes = selection.files.reduce(
+          (total, file) => total + file.size,
+          0,
+        );
+        const transferredRatio = progress.loaded / progress.total;
+        setUploadedBytes(
+          Math.min(selectedBytes, Math.round(selectedBytes * transferredRatio)),
+        );
+        setIsServerProcessing(progress.loaded >= progress.total);
       });
-
-      const body: UploadResponse = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        console.log("UPLOAD ERROR", body);
-        throw new Error(body.error ?? "Failed to upload files.");
-      }
 
       const uploadedKeys = body.files ?? [];
       const code = body.code ?? "";
@@ -110,6 +169,8 @@ export function FileUploadForm() {
       }));
       setCode(code);
       setUploadProgress(100);
+      setUploadedBytes(totalUploadBytes);
+      setIsServerProcessing(false);
       setStatus("success");
     } catch (error: unknown) {
       const errorMsg = getErrorMessage(error, "Failed to upload files.");
@@ -139,6 +200,9 @@ export function FileUploadForm() {
     setError(null);
     setCode(null);
     setUploadProgress(0);
+    setUploadedBytes(0);
+    setTotalUploadBytes(0);
+    setIsServerProcessing(false);
     setCopied(false);
   };
 
@@ -174,7 +238,7 @@ export function FileUploadForm() {
                   Click to upload or drag and drop
                 </p>
                 <p className="text-xs text-gray-500">
-                  PNG, JPG, PDF, DOC, or any file up to 100MB
+                  Images, documents, audio, video, and archives up to 100MB
                 </p>
               </div>
               <input
@@ -232,15 +296,22 @@ export function FileUploadForm() {
             </div>
           )}
 
-          {/* {status === "uploading" && (
+          {status === "uploading" && (
             <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
               <div className="mb-2 flex items-center justify-between text-sm font-medium text-blue-900">
                 <span className="flex items-center gap-2">
                   <LoadingSpinner size="sm" />
-                  Uploading files...
+                  {isServerProcessing
+                    ? "Finalizing files in secure storage..."
+                    : `Uploading ${selection.files.length} file${selection.files.length === 1 ? "" : "s"}...`}
                 </span>
                 <span>{uploadProgress}%</span>
               </div>
+              <p className="mb-2 text-xs text-blue-700" aria-live="polite">
+                {formatFileSize(uploadedBytes)} of {formatFileSize(totalUploadBytes)}
+                {" · "}
+                Overall progress
+              </p>
               <div className="h-2 overflow-hidden rounded-full bg-blue-100">
                 <div
                   className="h-full rounded-full bg-blue-600 transition-all duration-300 ease-out"
@@ -252,7 +323,7 @@ export function FileUploadForm() {
                 />
               </div>
             </div>
-          )} */}
+          )}
 
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
             <Button

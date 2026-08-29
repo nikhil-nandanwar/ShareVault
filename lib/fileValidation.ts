@@ -15,8 +15,28 @@ export const ALLOWED_TYPES = [
   "text/plain",
   "text/csv",
   "application/zip",
+  "application/x-zip-compressed",
   "application/x-rar-compressed",
+  "application/vnd.rar",
   "application/x-7z-compressed",
+  "application/x-tar",
+  "application/gzip",
+  "application/x-gzip",
+  "application/x-bzip2",
+  "application/x-xz",
+];
+
+export const ALLOWED_TYPE_PREFIXES = ["audio/", "video/"];
+
+export const ARCHIVE_EXTENSIONS = [
+  ".zip",
+  ".rar",
+  ".7z",
+  ".tar",
+  ".gz",
+  ".tgz",
+  ".bz2",
+  ".xz",
 ];
 
 export const DANGEROUS_PATTERNS = [
@@ -30,6 +50,27 @@ export type FileMeta = {
   size: number;
   type: string;
 };
+
+function isAllowedFileType(file: FileMeta): boolean {
+  const mimeType = file.type.toLowerCase();
+
+  if (
+    ALLOWED_TYPES.includes(mimeType) ||
+    ALLOWED_TYPE_PREFIXES.some((prefix) => mimeType.startsWith(prefix))
+  ) {
+    return true;
+  }
+
+  // Some browsers report archives as an empty or generic binary MIME type.
+  const hasArchiveExtension = ARCHIVE_EXTENSIONS.some((extension) =>
+    file.name.toLowerCase().endsWith(extension),
+  );
+
+  return (
+    hasArchiveExtension &&
+    (mimeType === "" || mimeType === "application/octet-stream")
+  );
+}
 
 export function validateFileMeta(file: FileMeta): string | null {
   if (!file.name?.trim()) {
@@ -48,8 +89,8 @@ export function validateFileMeta(file: FileMeta): string | null {
     return `File "${file.name}" exceeds maximum size of 100MB`;
   }
 
-  if (!ALLOWED_TYPES.includes(file.type)) {
-    return `File "${file.name}" has unsupported type "${file.type}"`;
+  if (!isAllowedFileType(file)) {
+    return `File "${file.name}" has unsupported type "${file.type || "unknown"}"`;
   }
 
   // Check for dangerous patterns in filename

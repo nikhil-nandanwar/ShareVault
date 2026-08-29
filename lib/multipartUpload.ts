@@ -2,6 +2,7 @@ import {
   AbortMultipartUploadCommand,
   CompleteMultipartUploadCommand,
   CreateMultipartUploadCommand,
+  PutObjectCommand,
   UploadPartCommand,
 } from "@aws-sdk/client-s3";
 import { logger } from "@/lib/logger";
@@ -9,31 +10,22 @@ import { s3 } from "@/lib/s3";
 import { variables } from "@/lib/variables";
 
 const PART_SIZE = 10 * 1024 * 1024;
+const PART_CONCURRENCY = 3;
 
-export async function uploadFileMultipart(
+type CompletedPart = { ETag: string; PartNumber: number };
+
+async function uploadParts(
   objectKey: string,
+  uploadId: string,
   file: File,
-): Promise<string> {
-  const createResponse = await s3.send(
-    new CreateMultipartUploadCommand({
-      Bucket: variables.BUCKET_NAME,
-      Key: objectKey,
-      ContentType: file.type,
-    }),
-  );
-  const uploadId = createResponse.UploadId;
+): Promise<CompletedPart[]> {
+  const partCount = Math.ceil(file.size / PART_SIZE);
+  const completedParts: CompletedPart[] = new Array(partCount);
+  let nextPartNumber = 1;
 
-  if (!uploadId) {
-    throw new Error(
-      `Multipart upload did not return an upload ID for ${objectKey}`,
-    );
-  }
-
-  try {
-    const completedParts: { ETag: string; PartNumber: number }[] = [];
-    const partCount = Math.ceil(file.size / PART_SIZE);
-
-    for (let partNumber = 1; partNumber <= partCount; partNumber++) {
+  async function worker() {
+    while (nextPartNumber <= partCount) {
+      const partNumber = nextPartNumber++;
       const start = (partNumber - 1) * PART_SIZE;
       const end = Math.min(start + PART_SIZE, file.size);
       const body = new Uint8Array(await file.slice(start, end).arrayBuffer());
@@ -55,11 +47,58 @@ export async function uploadFileMultipart(
         );
       }
 
-      completedParts.push({
+      completedParts[partNumber - 1] = {
         ETag: uploadResponse.ETag,
         PartNumber: partNumber,
-      });
+      };
     }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(PART_CONCURRENCY, partCount) }, () =>
+      worker(),
+    ),
+  );
+
+  return completedParts;
+}
+
+export async function uploadFileMultipart(
+  objectKey: string,
+  file: File,
+): Promise<string> {
+  // A single PUT avoids the create/complete round trips for small files.
+  if (file.size <= PART_SIZE) {
+    const body = new Uint8Array(await file.arrayBuffer());
+    await s3.send(
+      new PutObjectCommand({
+        Bucket: variables.BUCKET_NAME,
+        Key: objectKey,
+        Body: body,
+        ContentLength: body.byteLength,
+        ContentType: file.type || "application/octet-stream",
+      }),
+    );
+    return objectKey;
+  }
+
+  const createResponse = await s3.send(
+    new CreateMultipartUploadCommand({
+      Bucket: variables.BUCKET_NAME,
+      Key: objectKey,
+      ContentType: file.type || "application/octet-stream",
+    }),
+  );
+  const uploadId = createResponse.UploadId;
+
+  if (!uploadId) {
+    throw new Error(
+      `Multipart upload did not return an upload ID for ${objectKey}`,
+    );
+  }
+
+  try {
+    const completedParts = await uploadParts(objectKey, uploadId, file);
 
     await s3.send(
       new CompleteMultipartUploadCommand({
